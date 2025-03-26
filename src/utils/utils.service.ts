@@ -31,4 +31,9 @@ export class HashService {
         const paddedCount = String(studentCount + 1).padStart(5, '0');
         return `${schoolCode}${year}${paddedCount}`;
       }
+
+      generateUsernameForTeacher(firstName: string, lastName: string): string {
+        const randomString = crypto.randomBytes(2).toString('hex');
+        return `${firstName.toLowerCase()}-${lastName.toLowerCase()}-${randomString}`;
+      }
 }

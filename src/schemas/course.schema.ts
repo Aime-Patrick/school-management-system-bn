@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-
+import mongoose, { Types } from 'mongoose';
 
 @Schema({ timestamps: true })
 export class Course {
@@ -24,13 +24,16 @@ export class Course {
   @Prop({ required: true })
   credits: number;
 
-  @Prop({ required: true })
-  teacherIds: string[];
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Teacher' }] })
+  teacherIds: Types.Array<Types.ObjectId>;
 
-  @Prop({ required: true })
-  studentIds: string[];
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Student' }] })
+  studentIds: Types.Array<Types.ObjectId>;
 
   @Prop({ required: true })
   status: string;
+
+  @Prop({ required: true, type: Types.ObjectId, ref: 'School' })
+  school: Types.ObjectId;
 }
 export const CourseSchema = SchemaFactory.createForClass(Course);

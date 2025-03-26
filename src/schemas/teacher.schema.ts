@@ -1,7 +1,8 @@
 import {Prop, Schema, SchemaFactory} from '@nestjs/mongoose';
-import {Types} from 'mongoose';
+import mongoose, {Types} from 'mongoose';
 import {User} from './user.schema';
 import {Course} from './course.schema';
+import { School } from './school.schema';
 
 export enum TeacherStatus {
   ACTIVE = 'active',
@@ -15,8 +16,8 @@ export enum TeacherGender {
 
 @Schema({ timestamps: true })
 export class Teacher {
-    @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-    user: User;
+    @Prop({ type: Types.ObjectId, ref: 'User' })
+    accountCredentails: User;
     @Prop({ required: true })
     firstName: string;
     
@@ -25,9 +26,6 @@ export class Teacher {
 
     @Prop({ required: true })
     dateOfBirth: Date;
-
-    @Prop({ required: true })
-    phoneNumber: string;
 
     @Prop({ required: true })
     address: string;
@@ -44,6 +42,14 @@ export class Teacher {
     @Prop({ required: true })
     department: string;
 
-    @Prop({ type: [{ type: Types.ObjectId, ref: 'Course' }] })
-    coursesTaught: Types.ObjectId[];
+    @Prop({ type: [{ type: mongoose.Schema.ObjectId, ref: 'Course' }] })
+    coursesTaught: Course[];
+
+    @Prop({ required: true, enum: TeacherGender })
+    gender: TeacherGender;
+
+    @Prop({ type: mongoose.Schema.ObjectId, ref: 'School', required: true })
+    school: School;
 }
+
+export const TeacherSchema = SchemaFactory.createForClass(Teacher);

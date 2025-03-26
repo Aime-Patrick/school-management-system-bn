@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { School } from 'src/schemas/school.schema';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
@@ -8,7 +8,38 @@ export class SchoolService {
     constructor(@InjectModel(School.name) private schoolModel: Model<School>) {}
 
     async createSchool(createSchoolDto: CreateSchoolDto, schoolAdmin: string): Promise<School> {
+        const existingSchool = await this.schoolModel.findOne({
+            $or: [{ schoolAdmin }, { schoolName: createSchoolDto.schoolName }, { schoolCode: createSchoolDto.schoolCode }]
+        });
+        
+        if (existingSchool) {
+            throw new ConflictException("A school with the same admin, name, or code already exists.");
+        }
         const createdSchool = new this.schoolModel({...createSchoolDto, schoolAdmin});
-        return createdSchool.save();
+        return (await createdSchool.save()).populate("User");
+    }
+
+    async findAllSchools(): Promise<School[]> {
+        return await this.schoolModel.find().populate("User");
+    }
+
+    async findSchoolById(schoolId: string): Promise<School> {
+        const school = await this.schoolModel.findById(schoolId).populate("User");
+        if (!school) {
+            throw new Error(`School with ID ${schoolId} not found.`);
+        }
+        return school;
+    }
+
+    async updateSchool(schoolAdmin: string, createSchoolDto: CreateSchoolDto): Promise<School> {
+        const updatedSchool = await this.schoolModel.findOneAndUpdate({schoolAdmin}, {...createSchoolDto}, {new: true}).populate("User");
+        if (!updatedSchool) {
+            throw new Error(`School not found.`);
+        }
+        return updatedSchool;
+    }
+
+    async deleteSchool(schoolId: string): Promise<void> {
+        await this.schoolModel.findByIdAndDelete(schoolId).exec();
     }
 }

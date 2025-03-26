@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Student } from 'src/schemas/student.schema';
@@ -7,20 +11,26 @@ import { CreateStudentDto } from './dto/create-student.dto';
 import { School } from 'src/schemas/school.schema';
 import { User } from 'src/schemas/user.schema';
 import { UserRole } from 'src/schemas/user.schema';
-
+import { StudentEnrollIntoCourseDto } from './dto/student-enroll-course.dto';
+import { Course } from 'src/schemas/course.schema';
 @Injectable()
 export class StudentsService {
   constructor(
     @InjectModel(Student.name) private studentModel: Model<Student>,
     @InjectModel(School.name) private schoolModel: Model<School>,
     @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(Course.name) private courseModel: Model<Course>,
     private hashUtils: HashService,
   ) {}
 
   async createStudent(
     createStudentDto: CreateStudentDto,
     adminId: string,
-  ): Promise<Student> {
+  ): Promise<{
+    newStudent: Student;
+    accountCredentails: User;
+    studentPassword: string;
+  }> {
     try {
       const schoolAdmin = await this.schoolModel
         .findOne({ schoolAdmin: adminId })
@@ -48,24 +58,120 @@ export class StudentsService {
 
       await newStudent.save();
 
-      // Now create user credentials for this student
-      await this.createStudentCredentials(newStudent);
-      return newStudent;
+      const { user, password } = await this.createStudentCredentials(newStudent);
+      return {
+        newStudent,
+        accountCredentails: user,
+        studentPassword: password,
+      };
     } catch (error) {
-        throw new BadRequestException();
+      throw new BadRequestException(error.message);
     }
   }
 
-  async createStudentCredentials(student: Student){
-
+  async createStudentCredentials(student: Student) {
     const password = this.hashUtils.generatePassword(student.firstName);
     const hashedPassword = await this.hashUtils.hashPassword(password);
 
     const user = new this.userModel({
-      username: this.hashUtils.generateUsernameForStudent(student.firstName, student.registrationNumber),
+      username: this.hashUtils.generateUsernameForStudent(
+        student.firstName,
+        student.registrationNumber,
+      ),
       password: hashedPassword,
-      role: UserRole.STUDENT
+      role: UserRole.STUDENT,
     });
     await user.save();
+    await this.studentModel.findOneAndUpdate(
+      { _iregistrationNumberd: student?.registrationNumber },
+      { accountCredentails: user },
+    );
+    return { user, password };
   }
+
+  async findAllStudents(schoolAdmin: string): Promise<Student[]> {
+    const school = await this.schoolModel.findOne({ schoolAdmin });
+    if (!school) {
+      throw new BadRequestException('School not found');
+    }
+    return await this.studentModel.find({ school: school.id }).populate("school").select('-accountCredentails').exec();
+  }
+
+  async findStudentByRegistrationNumber(
+    regNumber: string,
+    schoolAdmin: string,
+  ): Promise<Student | null> {
+    const school = await this.schoolModel.findOne({ schoolAdmin });
+    if (!school) {
+      throw new BadRequestException('School not found');
+    }
+    return this.studentModel.findOne({ regNumber, school:school.id }).populate("school").select('-accountCredentails').exec();
+  }
+
+  async updateStudent(
+    regNumber: string,
+    createStudentDto: CreateStudentDto,
+    schoolAdmin: string,
+  ): Promise<Student | null> {
+    const school = await this.schoolModel.findOne({ schoolAdmin });
+    if (!school) {
+      throw new BadRequestException('School not found');
+    }
+    const updatedStudent = await this.studentModel.findOneAndUpdate(
+      { regNumber, school: school._id },
+      createStudentDto,
+      { new: true },
+    ).populate("school").select('-accountCredentails').exec();
+    return updatedStudent;
+  }
+
+  async deleteStudent(
+    registrationNumber: string,
+    schoolAdmin: string,
+  ): Promise<boolean> {
+    const school = await this.schoolModel.findOne({ schoolAdmin });
+    if (!school) {
+      throw new BadRequestException('School not found');
+    }
+    const deletedStudent = await this.studentModel.findOneAndDelete(
+      { registrationNumber, school: school._id },
+    ).exec();
+    return!!deletedStudent;
+  }
+
+  async getStudentByRegNmber(
+    regNumber: string,
+    schoolAdmin: string,
+  ): Promise<Student | null> {
+    const school = await this.schoolModel.findOne({ schoolAdmin });
+    if (!school) {
+      throw new BadRequestException('School not found');
+    }
+    return await this.studentModel.findOne({ registrationNumber:regNumber, school: school._id }).populate("school").select('-accountCredentails').exec();
+  }
+
+  async studentEnrollIntoCourse(studentEnrollIntoCourse: StudentEnrollIntoCourseDto, studentId:string): Promise<Student> {
+
+    const student = await this.studentModel.findById(studentId);
+    if (!student) {
+        throw new BadRequestException('Student not found');
+    }
+
+    const course = await this.courseModel.findById(studentEnrollIntoCourse.courseId);
+    if (!course) {
+        throw new BadRequestException('Course not found');
+    }
+
+    if (!student.school.equals(course.school)) {
+        throw new BadRequestException('Student can only enroll in courses from their school');
+    }
+    if (student.courseIds.includes(studentEnrollIntoCourse.courseId)) {
+        throw new BadRequestException('Student is already enrolled in this course');
+    }
+
+    student.courseIds.push(studentEnrollIntoCourse.courseId);
+    await student.save();
+    return student;
+}
+
 }
