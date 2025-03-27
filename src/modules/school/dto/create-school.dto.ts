@@ -17,8 +17,4 @@ export class CreateSchoolDto {
   @IsNotEmpty()
   address: string;
 
-  @ApiProperty({ example: '60d0fe4f5311236168a109ca' })
-  @IsMongoId()
-  @IsNotEmpty()
-  schoolAdmin: string;
 }

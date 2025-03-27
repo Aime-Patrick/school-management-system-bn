@@ -13,8 +13,8 @@ export enum StudentGender {
 
 @Schema({ timestamps: true })
 export class Student {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  user: User;
+  @Prop({ type: Types.ObjectId, ref: 'User'})
+  accountCredentails: User;
 
   @Prop({ required: true })
   firstName: string;
@@ -22,13 +22,12 @@ export class Student {
   @Prop({ required: true })
   lastName: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, unique: true  })
   registrationNumber: string;
 
   @Prop({ required: true })
   dateOfBirth: Date;
-  @Prop({ required: true })
-  grade: number;
+
   @Prop({ required: true, enum: StudentGender })
   gender: StudentGender;
   @Prop({ required: false })

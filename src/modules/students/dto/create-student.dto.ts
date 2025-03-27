@@ -23,9 +23,6 @@ export class CreateStudentDto {
   @IsNotEmpty()
   dateOfBirth: Date;
 
-  @ApiProperty({ example: 9 })
-  @IsNotEmpty()
-  grade: number;
 
   @ApiProperty({ example: 'male', enum: StudentGender })
   @IsEnum(StudentGender)
@@ -65,11 +62,6 @@ export class CreateStudentDto {
   @IsNotEmpty()
   parentId: string;
 
-  @ApiProperty({ example: ['60d0fe4f5311236168a109cb', '60d0fe4f5311236168a109cc'] })
-  @IsArray()
-  @IsMongoId({ each: true })
-  @IsNotEmpty()
-  courseIds: string[];
 
   @ApiProperty({ example: '60d0fe4f5311236168a109cd' })
   @IsMongoId()

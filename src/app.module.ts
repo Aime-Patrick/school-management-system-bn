@@ -7,6 +7,10 @@ import { SeedersModule } from './seeders/seeders.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { StudentsModule } from './modules/students/students.module';
 import { SchoolModule } from './modules/school/school.module';
+import { CoursesModule } from './modules/courses/courses.module';
+import { TeachersModule } from './modules/teachers/teachers.module';
+import { QuizesModule } from './modules/quizes/quizes.module';
+import { AssignmentsModule } from './modules/assignments/assignments.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ load: [databaseConfig] }),
@@ -19,8 +23,12 @@ import { SchoolModule } from './modules/school/school.module';
     }),
     AuthModule,
     UsersModule,
-    StudentsModule,
     SchoolModule,
+    CoursesModule,
+    TeachersModule,
+    StudentsModule,
+    QuizesModule,
+    AssignmentsModule,
     SeedersModule,
   ],
 })
