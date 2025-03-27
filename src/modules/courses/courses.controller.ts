@@ -1,4 +1,4 @@
-import { Controller, Post,Body, Req, UseGuards, Put, Param, Get, Delete  } from '@nestjs/common';
+import { Controller, Post,Body, Req, UseGuards, Put, Param, Get, Delete, Query  } from '@nestjs/common';
 import { ApiTags,ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from'src/guard/jwt-auth.guard';
 import { RolesGuard } from'src/guard/roles.guard';
@@ -9,6 +9,7 @@ import { UserRole } from 'src/schemas/user.schema';
 import { AssignTeacherDto } from './dto/assign-teacher.dto';
 import { UpdateCoursetDto } from './dto/updated-course.dto';
 import { TeacherAssignedCourses } from './dto/teacher-assigned-course.dto';
+import { Course } from 'src/schemas/course.schema';
 @ApiTags('courses')
 @Controller('courses')
 export class CoursesController {
@@ -28,6 +29,21 @@ export class CoursesController {
             throw new Error('Failed to create course');
         }
     }
+
+
+
+    @Get('course-by-teacher')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard)
+    @Roles(UserRole.SCHOOL_ADMIN, UserRole.TEACHER)
+    @ApiOperation({ summary: 'Get course by teacher', description: 'Get course record by teacher.' })
+   async getCourseByTeacher(@Query('teacherId') teacherId: string): Promise<Course[]> {
+    try {
+        return await this.coursesService.getCourseByTeacher( teacherId );
+    } catch (error) {
+        throw error;
+    }
+}
 
     @Put('assign-teacher/:courseId')
     @ApiBearerAuth()
@@ -109,20 +125,4 @@ export class CoursesController {
             throw error;
         }
     }
-
-    @Get('course-by-teacher')
-    @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard)
-    @Roles(UserRole.SCHOOL_ADMIN, UserRole.TEACHER)
-    @ApiOperation({ summary: 'Get course by teacher', description: 'Get course record by teacher.' })
-    async getCourseByTeacher(@Body() teacherAssignedCourses: TeacherAssignedCourses): Promise<CreateCourseDto[]> {
-        try {
-            return await this.coursesService.getCourseByTeacher(teacherAssignedCourses);
-        } catch (error) {
-            throw error;
-        }
-    }
-    
-
-
 }

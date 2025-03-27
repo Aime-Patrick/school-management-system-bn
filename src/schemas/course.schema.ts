@@ -24,11 +24,11 @@ export class Course {
   @Prop({ required: true })
   credits: number;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Teacher' }] })
-  teacherIds: Types.Array<Types.ObjectId>;
+  @Prop({ type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' }] })
+  teacherIds: mongoose.Types.ObjectId[];
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Student' }] })
-  studentIds: Types.Array<Types.ObjectId>;
+  @Prop({ type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Student' }] })
+  studentIds: mongoose.Types.ObjectId[];
 
   @Prop({ required: true })
   status: string;
