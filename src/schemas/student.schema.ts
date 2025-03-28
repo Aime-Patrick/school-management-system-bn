@@ -30,23 +30,27 @@ export class Student {
 
   @Prop({ required: true, enum: StudentGender })
   gender: StudentGender;
-  @Prop({ required: false })
+  @Prop({ required: false,  unique: true })
   phoneNumber: string;
+
   @Prop({ required: true })
   address: string;
+
   @Prop({ required: true })
   city: string;
+
   @Prop({ required: true })
   enrollmentDate: Date;
+
   @Prop()
   graduationDate?: Date;
   @Prop({ required: true })
   status: StudentStatus;
-  @Prop({ required: true })
+  @Prop({ required: false })
   parentId: string;
   @Prop({ required: true })
   courseIds: string[];
-  @Prop({ required: true, ref: 'School' })
+  @Prop({ type: Types.ObjectId,ref: 'School' })
   school: Types.ObjectId;
 }
 

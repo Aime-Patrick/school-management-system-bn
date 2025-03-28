@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, IsEnum, IsDate, IsArray, IsMongoId } from 'class-validator';
 import { StudentGender, StudentStatus } from '../../../schemas/student.schema';
+import { Type } from 'class-transformer';
 
 export class CreateStudentDto {
   @ApiProperty({ example: 'John' })
@@ -21,6 +22,7 @@ export class CreateStudentDto {
   @ApiProperty({ example: '2000-01-01' })
   @IsDate()
   @IsNotEmpty()
+  @Type(()=> Date)
   dateOfBirth: Date;
 
 
@@ -46,10 +48,12 @@ export class CreateStudentDto {
   @ApiProperty({ example: '2022-09-01' })
   @IsDate()
   @IsNotEmpty()
+  @Type(()=> Date)
   enrollmentDate: Date;
 
   @ApiProperty({ example: '2026-06-01', required: false })
   @IsDate()
+  @Type(()=> Date)
   graduationDate?: Date;
 
   @ApiProperty({ example: 'active', enum: StudentStatus })
@@ -57,14 +61,4 @@ export class CreateStudentDto {
   @IsNotEmpty()
   status: StudentStatus;
 
-  @ApiProperty({ example: '60d0fe4f5311236168a109ca' })
-  @IsMongoId()
-  @IsNotEmpty()
-  parentId: string;
-
-
-  @ApiProperty({ example: '60d0fe4f5311236168a109cd' })
-  @IsMongoId()
-  @IsNotEmpty()
-  school: string;
 }

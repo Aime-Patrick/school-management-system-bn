@@ -6,6 +6,7 @@ import { RolesGuard } from 'src/guard/roles.guard';
 import { Roles } from 'src/decorator/roles.decorator';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { StudentEnrollIntoCourseDto } from './dto/student-enroll-course.dto';
+import { UserRole } from 'src/schemas/user.schema';
 
 @ApiTags('students')
 @Controller('students')
@@ -45,7 +46,7 @@ export class StudentsController {
     @Get(':regNumber')
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('school-admin', 'teacher')
+    @Roles(UserRole.SCHOOL_ADMIN, UserRole.TEACHER, UserRole.STUDENT)
     @ApiOperation({ summary: 'Get student by registration number', description: 'Retrieve a student by their registration number.' })
     async findStudentByRegistrationNumber(@Param('regNumber') regNumber: string, @Req() req) {
         try {
@@ -90,14 +91,27 @@ export class StudentsController {
     @Post('enroll-course')
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('student')
+    @Roles(UserRole.STUDENT)
     @ApiOperation({ summary: 'Enroll student into course', description: 'Enroll a student into a course.' })
     async studentEnrollIntoCourse(@Body() studentEnrollIntoCourseDto: StudentEnrollIntoCourseDto, @Req() req) {
         try {
             const studentId = req.user.id;
             return await this.studentsService.studentEnrollIntoCourse(studentEnrollIntoCourseDto, studentId);
         } catch (error) {
-            console.error('Error enrolling student into course:', error);
+            throw error
+        }
+    }
+
+    @Delete('enroll-course/:studentId/:courseId')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.STUDENT,UserRole.TEACHER, UserRole.SCHOOL_ADMIN)
+    @ApiOperation({ summary: 'Remove student from enrolled course', description: 'Remove a student from an enrolled course.' })
+    async removeStudentFromEnroll(@Param('studentId') studentId: string, @Param('courseId') courseId: string) {
+        try {
+            await this.studentsService.removeStudentFromEnroll(studentId, courseId);
+            return {message: "student removed successfully"}
+        } catch (error) {
             throw error
         }
     }

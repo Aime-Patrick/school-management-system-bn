@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Student } from 'src/schemas/student.schema';
 import { HashService } from 'src/utils/utils.service';
 import { CreateStudentDto } from './dto/create-student.dto';
@@ -32,13 +32,25 @@ export class StudentsService {
     studentPassword: string;
   }> {
     try {
-      const schoolAdmin = await this.schoolModel
-        .findOne({ schoolAdmin: adminId })
-        .populate('User');
+      const schoolAdmin = await this.schoolModel.findOne({
+        schoolAdmin: adminId,
+      });
       if (!schoolAdmin) {
         throw new UnauthorizedException('School Admin not found');
       }
-
+  
+      // Check if the phone number already exists in the students or users collection
+      const existingStudent = await this.studentModel.findOne({
+        phoneNumber: createStudentDto.phoneNumber,
+      });
+      const existingUser = await this.userModel.findOne({
+        phoneNumber: createStudentDto.phoneNumber,
+      });
+  
+      if (existingStudent || existingUser) {
+        throw new BadRequestException('Phone number already exists');
+      }
+  
       const schoolId = schoolAdmin._id;
       const currentYear = new Date().getFullYear();
       const studentCount = await this.studentModel.countDocuments({
@@ -49,22 +61,27 @@ export class StudentsService {
         currentYear,
         studentCount,
       );
-
+  
       const newStudent = new this.studentModel({
         ...createStudentDto,
         school: schoolId,
         registrationNumber,
       });
-
+  
       await newStudent.save();
-
-      const { user, password } = await this.createStudentCredentials(newStudent);
+  
+      const { user, password } =
+        await this.createStudentCredentials(newStudent);
       return {
         newStudent,
         accountCredentails: user,
         studentPassword: password,
       };
     } catch (error) {
+      if (error.code === 11000) {
+        // Handle MongoDB duplicate key error
+        throw new BadRequestException('Duplicate key error: ' + error.message);
+      }
       throw new BadRequestException(error.message);
     }
   }
@@ -79,11 +96,13 @@ export class StudentsService {
         student.registrationNumber,
       ),
       password: hashedPassword,
+      phoneNumber: student.phoneNumber,
+      email: "none",
       role: UserRole.STUDENT,
     });
     await user.save();
     await this.studentModel.findOneAndUpdate(
-      { _iregistrationNumberd: student?.registrationNumber },
+      { registrationNumber: student?.registrationNumber },
       { accountCredentails: user },
     );
     return { user, password };
@@ -94,7 +113,11 @@ export class StudentsService {
     if (!school) {
       throw new BadRequestException('School not found');
     }
-    return await this.studentModel.find({ school: school.id }).populate("school").select('-accountCredentails').exec();
+    return await this.studentModel
+      .find({ school: school._id })
+      .populate('school')
+      .select('-accountCredentails')
+      .exec();
   }
 
   async findStudentByRegistrationNumber(
@@ -105,7 +128,11 @@ export class StudentsService {
     if (!school) {
       throw new BadRequestException('School not found');
     }
-    return this.studentModel.findOne({ regNumber, school:school.id }).populate("school").select('-accountCredentails').exec();
+    return this.studentModel
+      .findOne({ registrationNumber:regNumber, school: school._id })
+      .populate('school')
+      .select('-accountCredentails')
+      .exec();
   }
 
   async updateStudent(
@@ -117,11 +144,13 @@ export class StudentsService {
     if (!school) {
       throw new BadRequestException('School not found');
     }
-    const updatedStudent = await this.studentModel.findOneAndUpdate(
-      { regNumber, school: school._id },
-      createStudentDto,
-      { new: true },
-    ).populate("school").select('-accountCredentails').exec();
+    const updatedStudent = await this.studentModel
+      .findOneAndUpdate({ registrationNumber:regNumber, school: school._id }, createStudentDto, {
+        new: true,
+      })
+      .populate('school')
+      .select('-accountCredentails')
+      .exec();
     return updatedStudent;
   }
 
@@ -133,10 +162,10 @@ export class StudentsService {
     if (!school) {
       throw new BadRequestException('School not found');
     }
-    const deletedStudent = await this.studentModel.findOneAndDelete(
-      { registrationNumber, school: school._id },
-    ).exec();
-    return!!deletedStudent;
+    const deletedStudent = await this.studentModel
+      .findOneAndDelete({ registrationNumber, school: school._id })
+      .exec();
+    return !!deletedStudent;
   }
 
   async getStudentByRegNmber(
@@ -147,31 +176,65 @@ export class StudentsService {
     if (!school) {
       throw new BadRequestException('School not found');
     }
-    return await this.studentModel.findOne({ registrationNumber:regNumber, school: school._id }).populate("school").select('-accountCredentails').exec();
+    return await this.studentModel
+      .findOne({ registrationNumber: regNumber, school: school._id })
+      .populate('school')
+      .select('-accountCredentails')
+      .exec();
   }
 
-  async studentEnrollIntoCourse(studentEnrollIntoCourse: StudentEnrollIntoCourseDto, studentId:string): Promise<Student> {
-
-    const student = await this.studentModel.findById(studentId);
+  async studentEnrollIntoCourse(
+    studentEnrollIntoCourse: StudentEnrollIntoCourseDto,
+    studentId: string,
+  ): Promise<Student> {
+    const student = await this.studentModel.findOne({ "accountCredentails._id": new Types.ObjectId(studentId) });
     if (!student) {
-        throw new BadRequestException('Student not found');
+      throw new BadRequestException('Student not found');
     }
 
-    const course = await this.courseModel.findById(studentEnrollIntoCourse.courseId);
+    const course = await this.courseModel.findById(
+      studentEnrollIntoCourse.courseId,
+    );
     if (!course) {
-        throw new BadRequestException('Course not found');
+      throw new BadRequestException('Course not found');
     }
 
     if (!student.school.equals(course.school)) {
-        throw new BadRequestException('Student can only enroll in courses from their school');
+      throw new BadRequestException(
+        'Student can only enroll in courses from their school',
+      );
     }
     if (student.courseIds.includes(studentEnrollIntoCourse.courseId)) {
-        throw new BadRequestException('Student is already enrolled in this course');
+      throw new BadRequestException(
+        'Student is already enrolled in this course',
+      );
     }
 
     student.courseIds.push(studentEnrollIntoCourse.courseId);
     await student.save();
+    course.studentIds.push(student._id)
+    await course.save();
     return student;
-}
+  }
 
+  async removeStudentFromEnroll(studentId: string, courseId: string):Promise<void> {
+    const student = await this.studentModel.findById(studentId);
+    if (!student) {
+      throw new BadRequestException('Student not found');
+    }
+    const course = await this.courseModel.findById(courseId);
+    if (!course) {
+      throw new BadRequestException('Course not found');
+    }
+    if (!student.courseIds.includes(courseId)) {
+      throw new BadRequestException(
+        'Student is not enrolled in this course',
+      );
+    }
+    student.courseIds = student.courseIds.filter((id) => id.toString()!== courseId);
+    await student.save();
+    course.studentIds = course.studentIds.filter((id) => id.toString()!== studentId);
+    await course.save();
+    return;
+  }
 }

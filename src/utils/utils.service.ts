@@ -3,8 +3,9 @@ import { Injectable } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { v2 as cloudinary } from 'cloudinary';
 import { promises as fs } from 'fs';
-import path from 'path';
+import * as path from 'path';
 import { ConfigService } from '@nestjs/config';
+import { v4 as uuidv4 } from 'uuid';
 @Injectable()
 export class HashService {
     constructor(
@@ -50,7 +51,11 @@ export class HashService {
         return `${firstName.toLowerCase()}-${lastName.toLowerCase()}-${randomString}`;
       }
 
-      async uploadFileToCloudinary(file: Express.Multer.File): Promise<{ message: string; file: any }> {
+      async uploadFileToCloudinary(file: Express.Multer.File): Promise<{ message: string; uploadedFile: any }> {
+        if (!file || !file.originalname) {
+          throw new Error('No file uploaded');
+        }
+      
         const supportedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.tiff', '.pdf'];
       
         try {
@@ -59,18 +64,22 @@ export class HashService {
             throw new Error(`Unsupported file type: ${fileExtension}`);
           }
       
+          // Create a temporary file and write buffer content to it
+          const tempFilePath = path.join(__dirname, `temp-${uuidv4()}${fileExtension}`);
+          await fs.writeFile(tempFilePath, file.buffer);
+      
           // Upload file to Cloudinary
-          const result = await cloudinary.uploader.upload(file.path, {
+          const result = await cloudinary.uploader.upload(tempFilePath, {
             folder: 'school-management-mis',
             resource_type: 'auto',
           });
       
-          // Delete the file from local storage after successful upload
-          await fs.unlink(file.path);
+          // Delete the temporary file after successful upload
+          await fs.unlink(tempFilePath);
       
           return {
             message: 'File uploaded successfully',
-            file: {
+            uploadedFile: {
               name: result.public_id,
               url: result.secure_url,
               type: result.format,

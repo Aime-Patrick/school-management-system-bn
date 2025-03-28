@@ -20,7 +20,7 @@ export class Finance extends Document {
   status: string;
 
   @Prop()
-  receiptUrl?: string;
+  receipt?: string;
 
   @Prop({ type: Types.ObjectId, ref: 'School', required: true })
   school: Types.ObjectId;

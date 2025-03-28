@@ -10,7 +10,6 @@ export class LoginDto {
   @ApiProperty({ example: 'user@example.com' })
   @IsString()
   @IsNotEmpty({ message: 'field is required' })
-  @IsEmail()
   identifier: string;
 
   @ApiProperty({ example: 'password123' })

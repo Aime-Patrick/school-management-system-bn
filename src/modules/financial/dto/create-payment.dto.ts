@@ -15,7 +15,8 @@ export class CreatePaymentDto {
   paymentType: string;
 
   @ApiProperty({ example: 500 })
-  @IsNumber()
+  @IsNumber({},{message: "Amount must be a number"})
+  @Type(() => Number)
   @IsNotEmpty()
   amount: number;
 
@@ -35,8 +36,4 @@ export class CreatePaymentDto {
   @IsOptional()
   receipt?: any;
 
-  @ApiProperty({ example: '60d0fe4f5311236168a109ca' })
-  @IsMongoId()
-  @IsNotEmpty()
-  school: string;
 }
