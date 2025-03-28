@@ -4,16 +4,21 @@ import { Model } from 'mongoose';
 import { Finance } from 'src/schemas/financial.schema';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
-
+import { School } from 'src/schemas/school.schema';
 @Injectable()
 export class FinanceService {
   constructor(
-    @InjectModel(Finance.name) private paymentModel: Model<Finance>
+    @InjectModel(Finance.name) private paymentModel: Model<Finance>,
+    @InjectModel(School.name) private schoolModel: Model<School>,
   ) {}
 
-  async createPayment(createPaymentDto: CreatePaymentDto, receipt: Express.Multer.File): Promise<Finance> {
-    const payment = new this.paymentModel(createPaymentDto);
-    return await payment.save();
+  async createPayment(createPaymentDto: CreatePaymentDto, fileUrl: string, schoolAdmin:string): Promise<Finance> {
+    const school = await this.schoolModel.findOne({ schoolAdmin });
+    if (!school) {
+      throw new NotFoundException('School not found');
+    }
+    const payment = new this.paymentModel({...createPaymentDto, receipt: fileUrl, school:school.id});
+    return (await payment.save()).populate('school');
   }
 
   async getPayments(status?: string, date?: string, filterType?: 'daily' | 'weekly' | 'monthly'): Promise<Finance[]> {
@@ -58,12 +63,12 @@ export class FinanceService {
         throw new Error('Invalid date format');
       }
     }
-    return await this.paymentModel.find(filter).exec();
+    return await this.paymentModel.find(filter).populate("school").exec();
   }
 
 
   async getPaymentById(id: string): Promise<Finance> {
-    const payment = await this.paymentModel.findById(id).exec();
+    const payment = await this.paymentModel.findById(id).populate("school").exec();
     if (!payment) {
       throw new NotFoundException('Payment not found');
     }
@@ -71,7 +76,7 @@ export class FinanceService {
   }
 
   async updatePayment(id: string, updatePaymentDto: UpdatePaymentDto): Promise<Finance> {
-    const updatedPayment = await this.paymentModel.findByIdAndUpdate(id, updatePaymentDto, { new: true }).exec();
+    const updatedPayment = await this.paymentModel.findByIdAndUpdate(id, updatePaymentDto, { new: true }).populate('school').exec();
     if (!updatedPayment) {
       throw new NotFoundException('Payment not found');
     }

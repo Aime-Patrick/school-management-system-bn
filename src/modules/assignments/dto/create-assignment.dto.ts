@@ -24,11 +24,6 @@ export class CreateAssignmentDto {
   @IsNotEmpty()
   course: string;
 
-  @ApiProperty({ example: '60d0fe4f5311236168a109cb' })
-  @IsMongoId()
-  @IsNotEmpty()
-  teacher: string;
-
   @ApiProperty({ example: '60d0fe4f5311236168a109cc' })
   @IsMongoId()
   @IsNotEmpty()

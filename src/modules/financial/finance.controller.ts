@@ -10,6 +10,8 @@ import {
   UseInterceptors,
   UploadedFile,
   UseGuards,
+  BadRequestException,
+  Req,
 } from '@nestjs/common';
 import { FinanceService } from './finance.service';
 import {
@@ -17,6 +19,7 @@ import {
   ApiTags,
   ApiOperation,
   ApiConsumes,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CreatePaymentDto } from './dto/create-payment.dto';
@@ -25,11 +28,15 @@ import { JwtAuthGuard } from 'src/guard/jwt-auth.guard';
 import { RolesGuard } from 'src/guard/roles.guard';
 import { Roles } from 'src/decorator/roles.decorator';
 import { UserRole } from 'src/schemas/user.schema';
+import { HashService } from 'src/utils/utils.service';
 
 @ApiTags('finance')
 @Controller('finance')
 export class FinanceController {
-  constructor(private readonly financeService: FinanceService) {}
+  constructor(
+    private readonly financeService: FinanceService,
+    private hashService: HashService,
+  ) {}
 
   @Post('create-payment')
   @ApiBearerAuth()
@@ -43,9 +50,26 @@ export class FinanceController {
   @UseInterceptors(FileInterceptor('receipt'))
   async createPayment(
     @Body() createPaymentDto: CreatePaymentDto,
-    @UploadedFile() receipt: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req,
   ) {
-    return this.financeService.createPayment(createPaymentDto, receipt);
+    try {
+      if (!file) {
+        throw new BadRequestException(
+          'No file received. Make sure you are uploading a file.',
+        );
+      }
+      const schoolAdmin = req.user.id;
+      const { uploadedFile } =
+        await this.hashService.uploadFileToCloudinary(file);
+      return this.financeService.createPayment(
+        createPaymentDto,
+        uploadedFile.url,
+        schoolAdmin,
+      );
+    } catch (error) {
+      throw error;
+    }
   }
 
   @Get('payments')
@@ -57,12 +81,23 @@ export class FinanceController {
     description:
       'Get all payment records by status, date, daily, weekly, monthly.',
   })
+  @ApiQuery({ name: 'status', required: false, type: String })
+  @ApiQuery({ name: 'date', required: false, type: String })
+  @ApiQuery({
+    name: 'filterType',
+    required: false,
+    enum: ['daily', 'weekly', 'monthly'],
+  })
   async getAllPayments(
     @Query('status') status?: string,
     @Query('date') date?: string,
     @Query('filterType') filterType?: 'daily' | 'weekly' | 'monthly',
   ) {
-    return this.financeService.getPayments(status, date, filterType);
+    try {
+      return this.financeService.getPayments(status, date, filterType);
+    } catch (error) {
+      throw error;
+    }
   }
 
   @Get('payments/:id')
@@ -74,7 +109,11 @@ export class FinanceController {
     description: 'Get payment record by id.',
   })
   async getPaymentById(@Param('id') id: string) {
-    return this.financeService.getPaymentById(id);
+    try {
+      return this.financeService.getPaymentById(id);
+    } catch (error) {
+      throw error;
+    }
   }
 
   @Put('payments/:id')
@@ -90,8 +129,12 @@ export class FinanceController {
     @Param('id') id: string,
     @Body() updatePaymentDto: UpdatePaymentDto,
   ) {
-    return this.financeService.updatePayment(id, updatePaymentDto);
-  }
+try {
+  return this.financeService.updatePayment(id, updatePaymentDto);
+} catch (error) {
+  throw error;
+}  
+}
 
   @Delete('payments/:id')
   @ApiBearerAuth()
@@ -102,6 +145,10 @@ export class FinanceController {
     description: 'Delete payment record by id.',
   })
   async deletePayment(@Param('id') id: string) {
-    return this.financeService.deletePayment(id);
+    try {
+      return this.financeService.deletePayment(id);
+    } catch (error) {
+      throw error;
+    }
   }
 }

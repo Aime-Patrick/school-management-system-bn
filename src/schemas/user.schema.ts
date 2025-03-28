@@ -17,7 +17,7 @@ export class User {
 
   @Prop({ required: function(){
     return this.role !== UserRole.STUDENT;
-  }, unique: true })
+  }})
   email: string;
 
   @Prop({ required: function(){

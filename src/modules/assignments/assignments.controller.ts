@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post,UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post,Req,UseGuards } from '@nestjs/common';
 import { AssignmentService } from './assignments.service';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { JwtAuthGuard } from 'src/guard/jwt-auth.guard';
@@ -18,14 +18,15 @@ export class AssignmentController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.TEACHER)
   @ApiOperation({ summary: 'Create assignment', description: 'Create a new assignment record.' })
-  createAssignment(@Body() createAssignmentDto: CreateAssignmentDto) {
-    return this.assignmentService.createAssignment(createAssignmentDto);
+  createAssignment(@Body() createAssignmentDto: CreateAssignmentDto, @Req() req) {
+    const user = req.user.id;
+    return this.assignmentService.createAssignment(createAssignmentDto, user);
   }
 
   @Get(':courseId')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.STUDENT)
+  @Roles(UserRole.STUDENT, UserRole.TEACHER)
   @ApiOperation({ summary: 'Get assignments by course', description: 'Get all quizzes for a specific course.' })
   getAssignmentsByCourse(@Param('courseId') courseId: string) {
     return this.assignmentService.getAssignmentsByCourse(courseId);

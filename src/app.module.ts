@@ -12,6 +12,10 @@ import { TeachersModule } from './modules/teachers/teachers.module';
 import { QuizesModule } from './modules/quizes/quizes.module';
 import { AssignmentsModule } from './modules/assignments/assignments.module';
 import { FinancialModule } from './modules/financial/finance.module';
+import { TermsModule } from './modules/terms/terms.module';
+import { ClassesModule } from './modules/classes/classes.module';
+import { EventsModule } from './modules/events/events.module';
+import { ResultModule } from './modules/result/result.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ load: [databaseConfig] }),
@@ -28,6 +32,10 @@ import { FinancialModule } from './modules/financial/finance.module';
     CoursesModule,
     TeachersModule,
     StudentsModule,
+    TermsModule,
+    ClassesModule,
+    EventsModule,
+    ResultModule,
     QuizesModule,
     AssignmentsModule,
     FinancialModule,
