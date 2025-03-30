@@ -4,7 +4,9 @@
     {
       "src": "dist/main.js",
       "use": "@vercel/node",
-      "config": { "includeFiles": ["dist/**", "./node_modules/swagger-ui-dist/**"] }
+      "config": {
+        "includeFiles": ["dist/**", "node_modules/swagger-ui-dist/**"]
+      }
     }
   ],
   "routes": [
@@ -14,8 +16,7 @@
     },
     {
       "src": "/(.*)",
-      "headers": { "Location": "/api/$1" },
-      "status": 308
+      "dest": "dist/main.js"
     }
   ]
 }
