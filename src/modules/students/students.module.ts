@@ -7,6 +7,7 @@ import { Student, StudentSchema } from '../../schemas/student.schema';
 import { School, SchoolSchema } from '../../schemas/school.schema';
 import { User, UserSchema } from 'src/schemas/user.schema';
 import { CourseSchema, Course } from 'src/schemas/course.schema';
+import { Teacher, TeacherSchema } from 'src/schemas/teacher.schema';
 @Module({
   imports: [
     UtilsModule,
@@ -15,6 +16,7 @@ import { CourseSchema, Course } from 'src/schemas/course.schema';
       { name: School.name, schema: SchoolSchema },
       {name: User.name, schema: UserSchema},
       { name: Course.name, schema: CourseSchema },
+      { name: Teacher.name, schema: TeacherSchema },
     ]),
   ],
   exports: [StudentsService],

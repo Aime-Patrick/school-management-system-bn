@@ -61,12 +61,6 @@ export class CreateResultDto {
   @Type(() => SubjectResultDto)
   subjectResults: SubjectResultDto[];
 
-  @ApiProperty({
-    example: 175,
-    description: 'The total score across all subjects',
-  })
-  @IsNumber()
-  totalScore: number;
 
   @ApiProperty({
     example: 87.5,

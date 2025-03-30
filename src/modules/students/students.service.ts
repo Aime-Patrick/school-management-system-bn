@@ -13,6 +13,7 @@ import { User } from 'src/schemas/user.schema';
 import { UserRole } from 'src/schemas/user.schema';
 import { StudentEnrollIntoCourseDto } from './dto/student-enroll-course.dto';
 import { Course } from 'src/schemas/course.schema';
+import { Teacher } from 'src/schemas/teacher.schema';
 @Injectable()
 export class StudentsService {
   constructor(
@@ -20,6 +21,7 @@ export class StudentsService {
     @InjectModel(School.name) private schoolModel: Model<School>,
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Course.name) private courseModel: Model<Course>,
+    @InjectModel(Teacher.name) private teacherModel: Model<Teacher>,
     private hashUtils: HashService,
   ) {}
 
@@ -108,49 +110,84 @@ export class StudentsService {
     return { user, password };
   }
 
-  async findAllStudents(schoolAdmin: string): Promise<Student[]> {
-    const school = await this.schoolModel.findOne({ schoolAdmin });
-    if (!school) {
-      throw new BadRequestException('School not found');
-    }
-    return await this.studentModel
-      .find({ school: school._id })
-      .populate('school')
+  async findAllStudents(userId: string): Promise<Student[]> {
+    let school:any;
+    let studentsService:any;
+    const adminSchool = await this.schoolModel.findOne({ scoolAdmin:userId });
+    const teacher = await this.teacherModel.findOne({ "accountCredentails._id": new Types.ObjectId(userId) });
+    if (adminSchool){
+      school = adminSchool;
+      studentsService = await this.studentModel.find({school}).populate('school')
       .select('-accountCredentails')
       .exec();
+    } else if(teacher){
+      school = teacher?.school;
+      studentsService = await this.studentModel.find({ school }).populate('school')
+      .select('-accountCredentails')
+      .exec();
+    }else{
+      throw new BadRequestException('School not found');
+
+    }
+    return studentsService;
   }
 
   async findStudentByRegistrationNumber(
     regNumber: string,
-    schoolAdmin: string,
+    userId: string,
   ): Promise<Student | null> {
-    const school = await this.schoolModel.findOne({ schoolAdmin });
-    if (!school) {
-      throw new BadRequestException('School not found');
-    }
-    return this.studentModel
-      .findOne({ registrationNumber:regNumber, school: school._id })
-      .populate('school')
+    let school:any;
+    let studentsService:any;
+    const adminSchool = await this.schoolModel.findOne({ scoolAdmin:userId });
+    const teacher = await this.teacherModel.findOne({ "accountCredentails._id": new Types.ObjectId(userId) });
+    if (adminSchool){
+      school = adminSchool;
+      studentsService = await this.studentModel.find({registrationNumber:regNumber,school}).populate('school')
       .select('-accountCredentails')
       .exec();
+    } else if(teacher){
+      school = teacher?.school;
+      studentsService = await this.studentModel.find({registrationNumber:regNumber, school }).populate('school')
+      .select('-accountCredentails')
+      .exec();
+    }else{
+      throw new BadRequestException('School not found');
+
+    }
+    return studentsService;
   }
 
   async updateStudent(
     regNumber: string,
     createStudentDto: CreateStudentDto,
-    schoolAdmin: string,
+    userId: string,
   ): Promise<Student | null> {
-    const school = await this.schoolModel.findOne({ schoolAdmin });
-    if (!school) {
-      throw new BadRequestException('School not found');
-    }
-    const updatedStudent = await this.studentModel
-      .findOneAndUpdate({ registrationNumber:regNumber, school: school._id }, createStudentDto, {
+    let school:any;
+    let updatedStudent:any;
+    const adminSchool = await this.schoolModel.findOne({ scoolAdmin:userId });
+    const teacher = await this.teacherModel.findOne({ "accountCredentails._id": new Types.ObjectId(userId) });
+    if (adminSchool){
+      school = adminSchool;
+      updatedStudent = await this.studentModel
+      .findOneAndUpdate({ registrationNumber:regNumber, school }, createStudentDto, {
         new: true,
       })
       .populate('school')
       .select('-accountCredentails')
       .exec();
+    } else if(teacher){
+      school = teacher?.school;
+      updatedStudent = await this.studentModel
+      .findOneAndUpdate({ registrationNumber:regNumber, school }, createStudentDto, {
+        new: true,
+      })
+      .populate('school')
+      .select('-accountCredentails')
+      .exec();
+    }else{
+      throw new BadRequestException('School not found');
+
+    }
     return updatedStudent;
   }
 

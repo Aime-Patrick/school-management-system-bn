@@ -10,7 +10,7 @@ export class ResultService {
   constructor(@InjectModel('Result') private readonly resultModel: Model<Result>) {}
 
   // Create a new result
-  async create(createResultDto: CreateResultDto): Promise<Result> {
+  async createResult(createResultDto: CreateResultDto): Promise<Result> {
     const totalScore = createResultDto.subjectResults.reduce((sum, sub) => sum + sub.score, 0);
     const maxTotalScore = createResultDto.subjectResults.reduce((sum, sub) => sum + sub.maxScore, 0);
     const percentage = (totalScore / maxTotalScore) * 100;
