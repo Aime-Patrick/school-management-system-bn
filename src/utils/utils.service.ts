@@ -1,4 +1,4 @@
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import { Injectable } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { v2 as cloudinary } from 'cloudinary';
