@@ -31,7 +31,7 @@ export class ResultController {
     description: 'Allows school admins and teachers to create a new result.',
   })
   async create(@Body() createResultDto: CreateResultDto) {
-    return this.resultService.create(createResultDto);
+    return this.resultService.createResult(createResultDto);
   }
 
   @Get()
@@ -43,7 +43,7 @@ export class ResultController {
     description: 'Retrieve all results with optional filters for class and exam type.',
   })
   @ApiQuery({ name: 'classId', required: false, type: String, description: 'Filter results by class ID' })
-  @ApiQuery({ name: 'examType', required: false, type: String, description: 'Filter results by exam type' })
+  @ApiQuery({ name: 'examType',enum: ['Midterm', 'Final', 'Assessment'], required: false, type: String, description: 'Filter results by exam type' })
   async findAll(
     @Query('classId') classId?: string,
     @Query('examType') examType?: string,

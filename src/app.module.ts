@@ -16,6 +16,7 @@ import { TermsModule } from './modules/terms/terms.module';
 import { ClassesModule } from './modules/classes/classes.module';
 import { EventsModule } from './modules/events/events.module';
 import { ResultModule } from './modules/result/result.module';
+import { AppController } from './app.controller';
 @Module({
   imports: [
     ConfigModule.forRoot({ load: [databaseConfig] }),
@@ -41,5 +42,7 @@ import { ResultModule } from './modules/result/result.module';
     FinancialModule,
     SeedersModule,
   ],
+  controllers: [AppController],
+  providers: [],
 })
 export class AppModule {}

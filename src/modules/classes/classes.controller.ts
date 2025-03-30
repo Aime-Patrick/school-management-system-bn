@@ -9,7 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/guard/jwt-auth.guard';
 import { Roles } from 'src/decorator/roles.decorator';
 import { RolesGuard } from 'src/guard/roles.guard';
@@ -40,6 +40,9 @@ export class ClassesController {
     summary: 'Get all classes',
     description: 'Retrieve all classes with optional filters for grade, subject, or teacher.',
   })
+  @ApiQuery({ name: 'grade', required: false, type: String, description: 'Filter results by grade' })
+  @ApiQuery({ name: 'subject', required: false, type: String, description: 'Filter results by subject' })
+  @ApiQuery({ name: 'teacherId', required: false, type: String, description: 'Filter results by teacherId' })
   async getAllClasses(
     @Query('grade') grade?: string,
     @Query('subject') subject?: string,

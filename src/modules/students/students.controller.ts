@@ -38,8 +38,7 @@ export class StudentsController {
             const schoolAdmin = req.user.id;
             return await this.studentsService.findAllStudents(schoolAdmin);
         } catch (error) {
-            console.error('Error fetching students:', error);
-            throw new Error('Failed to fetch students');
+            throw error;
         }
     }
 
