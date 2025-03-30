@@ -22,6 +22,7 @@ export class SeederService {
     const email = this.configService.get<string>('SYSTEM_EMAIL');
     const password = this.configService.get<string>('SYSTEM_PASSWORD');
     const username = this.configService.get<string>('SYSTEM_USERNAME');
+    const phoneNumber = this.configService.get<string>('SYSTEM_PHONENUMBER');
     const existingSuperAdmin = await this.userModel.findOne({
       role: UserRole.SYSTEM_ADMIN,
     });
@@ -36,6 +37,7 @@ export class SeederService {
       const superAdmin = new this.userModel({
         username,
         email,
+        phoneNumber,
         password: hashedPassword,
         role: UserRole.SYSTEM_ADMIN,
       });
