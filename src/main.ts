@@ -10,7 +10,7 @@ async function bootstrap() {
     transform: true,
     whitelist: true}));
   app.setGlobalPrefix('api/');
-  
+
   const config = new DocumentBuilder()
   .setTitle('School Management system API')
   .setDescription('API description for School Management system')
@@ -21,7 +21,7 @@ async function bootstrap() {
 
 const document = SwaggerModule.createDocument(app, config);
 
-SwaggerModule.setup('api-docs', app, document);
+SwaggerModule.setup('api/docs', app, document);
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();
