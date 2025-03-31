@@ -19,7 +19,7 @@ export class Result extends Document {
   @Prop({
     type: [
       {
-        subject: { type: String, required: true },
+        courseId: { type: Types.ObjectId, required: true, ref: 'Course'},
         score: { type: Number, required: true },
         maxScore: { type: Number, required: true },
       },

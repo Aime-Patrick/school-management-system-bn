@@ -48,8 +48,8 @@ export class Student {
   status: StudentStatus;
   @Prop({ required: false })
   parentId: string;
-  @Prop({ required: true })
-  courseIds: string[];
+  @Prop({ required: true, ref: "Course" })
+  courseIds: Types.ObjectId[];
   @Prop({ type: Types.ObjectId,ref: 'School' })
   school: Types.ObjectId;
 }

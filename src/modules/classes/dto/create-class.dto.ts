@@ -13,24 +13,15 @@ export class CreateClassDto {
   name: string;
 
   @ApiProperty({
-    example: 'Grade 10',
-    description: 'The grade of the class',
-  })
-  @IsString()
-  grade: string;
-
-  @ApiProperty({
     example: [
-      { id: '60d0fe4f5311236168a109ca', name: 'Teacher A' },
-      { id: '60d0fe4f5311236168a109cb', name: 'Teacher B' },
+      { id: '60d0fe4f5311236168a109ca' },
+      { id: '60d0fe4f5311236168a109cb' },
     ],
     description: 'The list of assigned teachers for the class',
     required: false,
-    type: [TeacherDto],
   })
   @IsArray()
   @IsOptional()
-  @Type(() => TeacherDto)
   assignedTeachers: TeacherDto[];
 
   @ApiProperty({
@@ -57,16 +48,4 @@ export class CreateClassDto {
   @IsOptional()
   students: string[];
 
-  @ApiProperty({
-    example: [
-      { subject: 'Math', averageScore: 85 },
-      { subject: 'Science', averageScore: 90 },
-    ],
-    description: 'The performance data for the class',
-    required: false,
-    type: [Object],
-  })
-  @IsArray()
-  @IsOptional()
-  performance: any[];
 }

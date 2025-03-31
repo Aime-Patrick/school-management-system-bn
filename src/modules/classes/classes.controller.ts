@@ -8,8 +8,9 @@ import {
   Body,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/guard/jwt-auth.guard';
 import { Roles } from 'src/decorator/roles.decorator';
 import { RolesGuard } from 'src/guard/roles.guard';
@@ -28,9 +29,14 @@ export class ClassesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SCHOOL_ADMIN)
   @ApiOperation({ summary: 'Create a new class', description: 'Create a new class record.' })
-  async createClass(@Body() createClassDto: CreateClassDto) {
-    return this.classService.create(createClassDto);
-  }
+  async createClass(@Body() createClassDto: CreateClassDto, @Req() req) {
+    try {
+        const userId= req.user.id
+        return this.classService.create(createClassDto, userId);
+      } catch (error) {
+        throw error;
+    }
+}
 
   @Get()
   @ApiBearerAuth()
@@ -48,7 +54,11 @@ export class ClassesController {
     @Query('subject') subject?: string,
     @Query('teacherId') teacherId?: string,
   ) {
-    return this.classService.getAllClasses(grade, subject, teacherId);
+    try {
+        return this.classService.getAllClasses(grade, subject, teacherId);
+    } catch (error) {
+        throw error;
+    }
   }
 
   @Get(':classId')
@@ -60,7 +70,11 @@ export class ClassesController {
     description: 'Retrieve details of a specific class by its ID.',
   })
   async getClassById(@Param('classId') classId: string) {
+    try {
     return this.classService.getClassById(classId);
+    } catch (error) {
+        throw error;
+    }
   }
 
   @Put(':classId')
@@ -75,7 +89,11 @@ export class ClassesController {
     @Param('classId') classId: string,
     @Body() updateClassDto: UpdateClassDto,
   ) {
-    return this.classService.updateClass(classId, updateClassDto);
+    try {
+      return this.classService.updateClass(classId, updateClassDto);
+    } catch (error) {
+      throw error;
+    }
   }
 
   @Post(':classId/students')
@@ -86,11 +104,31 @@ export class ClassesController {
     summary: 'Add students to a class',
     description: 'Add students to a specific class by their IDs.',
   })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        studentIds: {
+          type: 'array',
+          items: { type: 'string' },
+          example:{
+            studentIds: ['student1', 'student2'],
+          }
+        },
+      },
+    },
+  })
   async addStudentsToClass(
     @Param('classId') classId: string,
     @Body('studentIds') studentIds: string[],
+    @Req() req
   ) {
-    return this.classService.addStudentsToClass(classId, studentIds);
+    try {
+        const userId = req.user.id;
+    return this.classService.addStudentsToClass(classId, studentIds, userId);
+    } catch (error) {
+        throw error;
+    }
   }
 
   @Delete(':classId/students')
@@ -105,7 +143,11 @@ export class ClassesController {
     @Param('classId') classId: string,
     @Body('studentIds') studentIds: string[],
   ) {
-    return this.classService.removeStudentsFromClass(classId, studentIds);
+    try {
+      return this.classService.removeStudentsFromClass(classId, studentIds);
+    } catch (error) {
+      throw error;
+    }
   }
 
   @Get(':classId/performance')
@@ -117,6 +159,10 @@ export class ClassesController {
     description: 'Retrieve the performance data of a specific class.',
   })
   async getClassPerformance(@Param('classId') classId: string) {
-    return this.classService.getClassPerformance(classId);
+    try {
+      return this.classService.calculateClassPerformance(classId);
+    } catch (error) {
+      throw error;
+    }
   }
 }

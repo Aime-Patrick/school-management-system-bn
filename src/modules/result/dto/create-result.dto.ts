@@ -4,22 +4,22 @@ import { ApiProperty } from '@nestjs/swagger';
 
 class SubjectResultDto {
   @ApiProperty({
-    example: 'Math',
-    description: 'The name of the subject',
+    example: '60d0fe4f5311236168a109ca',
+    description: 'The id of the course',
   })
   @IsString()
-  subject: string;
+  courseId: string;
 
   @ApiProperty({
     example: 85,
-    description: 'The score obtained in the subject',
+    description: 'The score obtained in the course',
   })
   @IsNumber()
   score: number;
 
   @ApiProperty({
     example: 100,
-    description: 'The maximum possible score for the subject',
+    description: 'The maximum possible score for the course',
   })
   @IsNumber()
   maxScore: number;
@@ -50,10 +50,10 @@ export class CreateResultDto {
 
   @ApiProperty({
     example: [
-      { subject: 'Math', score: 85, maxScore: 100 },
-      { subject: 'Science', score: 90, maxScore: 100 },
+      { courseId: '60d0fe4f5311236168a109ca', score: 85, maxScore: 100 },
+      { courseId: '60d0fe4f5311236168a109cb', score: 90, maxScore: 100 },
     ],
-    description: 'The list of subject results',
+    description: 'The list of courses results',
     type: [SubjectResultDto],
   })
   @IsArray()
@@ -61,19 +61,4 @@ export class CreateResultDto {
   @Type(() => SubjectResultDto)
   subjectResults: SubjectResultDto[];
 
-
-  @ApiProperty({
-    example: 87.5,
-    description: 'The percentage score',
-  })
-  @IsNumber()
-  percentage: number;
-
-  @ApiProperty({
-    example: 'Excellent performance',
-    description: 'Remarks or feedback for the result',
-    required: false,
-  })
-  @IsString()
-  remarks?: string;
 }

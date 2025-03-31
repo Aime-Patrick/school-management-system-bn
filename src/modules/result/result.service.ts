@@ -1,29 +1,66 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Result } from '../../schemas/result.schema';
 import { CreateResultDto } from './dto/create-result.dto';
 import { UpdateResultDto } from './dto/update-result.dto';
+import { Student } from 'src/schemas/student.schema';
+import { Class } from 'src/schemas/class.schema';
 
 @Injectable()
 export class ResultService {
-  constructor(@InjectModel('Result') private readonly resultModel: Model<Result>) {}
+  constructor(@InjectModel(Result.name) private readonly resultModel: Model<Result>,
+  @InjectModel(Student.name) private readonly studentModel: Model<Student>,
+  @InjectModel(Class.name) private readonly classModel: Model<Class>,
+) {}
 
   // Create a new result
   async createResult(createResultDto: CreateResultDto): Promise<Result> {
-    const totalScore = createResultDto.subjectResults.reduce((sum, sub) => sum + sub.score, 0);
-    const maxTotalScore = createResultDto.subjectResults.reduce((sum, sub) => sum + sub.maxScore, 0);
-    const percentage = (totalScore / maxTotalScore) * 100;
+    const { student, subjectResults, class: classId } = createResultDto;
+  
+    const classData = await this.classModel.findById(classId);
+  if (!classData) {
+    throw new NotFoundException('Class not found');
+  }
 
+  if (!classData.students.includes(new Types.ObjectId(student))) {
+    throw new BadRequestException('Student is not enrolled in this class');
+  }
+    // Fetch student details including enrolled courses
+    const studentData = await this.studentModel.findById(student).populate('courseIds');
+  
+    if (!studentData) {
+      throw new NotFoundException('Student not found');
+    }
+  
+
+  const enrolledCourses = studentData.courseIds.map((course) => course._id.toString());
+
+  console.log('Enrolled Courses:', enrolledCourses);
+  console.log('Submitted Courses:', subjectResults.map((sub) => sub.courseId));
+
+  const missingCourses = subjectResults.filter((sub) => !enrolledCourses.includes(sub.courseId));
+  
+    if (missingCourses.length > 0) {
+      throw new BadRequestException('Student is not enrolled in all selected courses');
+    }
+  
+    // Calculate total score and percentage
+    const totalScore = subjectResults.reduce((sum, sub) => sum + sub.score, 0);
+    const maxTotalScore = subjectResults.reduce((sum, sub) => sum + sub.maxScore, 0);
+    const percentage = (totalScore / maxTotalScore) * 100;
+  
+    // Save the result
     const result = new this.resultModel({
       ...createResultDto,
       totalScore,
       percentage,
       remarks: this.generateRemarks(percentage),
     });
-    
+  
     return await result.save();
   }
+  
 
   // Generate remarks based on percentage
   private generateRemarks(percentage: number): string {
@@ -39,7 +76,7 @@ export class ResultService {
     if (classId) query.class = classId;
     if (examType) query.examType = examType;
     
-    return this.resultModel.find(query).populate('student class').exec();
+    return await this.resultModel.find(query).populate('student class').exec();
   }
 
   // Get results for a single student

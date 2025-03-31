@@ -241,13 +241,13 @@ export class StudentsService {
         'Student can only enroll in courses from their school',
       );
     }
-    if (student.courseIds.includes(studentEnrollIntoCourse.courseId)) {
+    if (student.courseIds.includes(new Types.ObjectId(studentEnrollIntoCourse.courseId))) {
       throw new BadRequestException(
         'Student is already enrolled in this course',
       );
     }
 
-    student.courseIds.push(studentEnrollIntoCourse.courseId);
+    student.courseIds.push(new Types.ObjectId(studentEnrollIntoCourse.courseId));
     await student.save();
     course.studentIds.push(student._id)
     await course.save();
@@ -263,7 +263,7 @@ export class StudentsService {
     if (!course) {
       throw new BadRequestException('Course not found');
     }
-    if (!student.courseIds.includes(courseId)) {
+    if (!student.courseIds.includes(new Types.ObjectId(courseId))) {
       throw new BadRequestException(
         'Student is not enrolled in this course',
       );
