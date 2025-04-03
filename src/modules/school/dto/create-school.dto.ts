@@ -17,4 +17,8 @@ export class CreateSchoolDto {
   @IsNotEmpty()
   address: string;
 
+  @ApiProperty({ type: 'string', format: 'binary', required: false })
+  schoolLogo?: any;
+  
+
 }

@@ -1,26 +1,36 @@
-import { BadRequestException, Body, Controller, Post, Get, Put, Delete, Param, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Post, Get, Put, Delete, Param, Req, UseGuards, UploadedFile } from '@nestjs/common';
 import { SchoolService } from './school.service';
-import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/guard/jwt-auth.guard';
 import { RolesGuard } from 'src/guard/roles.guard';
 import { Roles } from 'src/decorator/roles.decorator';
 import { CreateSchoolDto } from './dto/create-school.dto';
 import { UserRole } from 'src/schemas/user.schema';
-
+import { FileInterceptor } from '@nestjs/platform-express';
+import { HashService } from 'src/utils/utils.service';
 @ApiTags('school')
 @Controller('school')
 export class SchoolController {
-    constructor(private readonly schoolService: SchoolService) {}
+    constructor(private readonly schoolService: SchoolService,
+            private hashService: HashService,
+    ) {}
 
     @Post()
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.SCHOOL_ADMIN)
+    @ApiConsumes('multipart/form-data')
     @ApiOperation({ summary: 'Create school', description: 'Create a new school record.' })
-    async createSchool(@Body() createSchoolDto: CreateSchoolDto, @Req() req) {
+    async createSchool(@Body() createSchoolDto: CreateSchoolDto,@UploadedFile() file: Express.Multer.File, @Req() req) {
         try {
+            if (!file) {
+                throw new BadRequestException(
+                  'No file received. Make sure you are uploading a file.',
+                );
+              }
             const schoolAdmin = req.user.id;
-            return await this.schoolService.createSchool(createSchoolDto, schoolAdmin);
+            const { uploadedFile } = await this.hashService.uploadFileToCloudinary(file);
+            return await this.schoolService.createSchool(createSchoolDto, schoolAdmin, uploadedFile.url);
         } catch (error) {
             throw error;
         }

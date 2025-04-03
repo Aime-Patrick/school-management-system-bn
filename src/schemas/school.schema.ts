@@ -8,6 +8,9 @@ import { Course } from "./course.schema";
 
 @Schema({ timestamps: true })
 export class School {
+  @Prop({required: true})
+  schoolLogo: string
+
   @Prop({ required: true, unique: true })
   schoolName: string;
 
@@ -19,6 +22,9 @@ export class School {
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true }) 
   schoolAdmin: User;
+
+  @Prop({ required: true , enum: ["active", "disactive"], default: "active" })
+  status : "active" | "disactive"
 }
 
 export const SchoolSchema = SchemaFactory.createForClass(School);

@@ -274,4 +274,9 @@ export class StudentsService {
     await course.save();
     return;
   }
+
+  async getAllStudent () {
+    const students = await this.studentModel.find().populate('school').select('-accountCredentails').exec();
+    return students;
+  }
 }

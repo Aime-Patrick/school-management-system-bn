@@ -42,6 +42,19 @@ export class StudentsController {
         }
     }
 
+    @Get('all-students')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.SYSTEM_ADMIN)
+    @ApiOperation({ summary: 'Get All student', description: 'Retrieve all students in system' })
+    async getAllStudent() {
+        try {
+            return await this.studentsService.getAllStudent();
+        } catch (error) {
+            throw error;
+        }
+    }
+
     @Get(':regNumber')
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard, RolesGuard)
