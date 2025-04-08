@@ -30,6 +30,8 @@ export class User {
 
   @Prop({required: true, enum: UserRole})
     role: string;
+  @Prop({required: false})
+  profileImage: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

@@ -50,6 +50,9 @@ export class Teacher {
 
     @Prop({ type: mongoose.Schema.ObjectId, ref: 'School', required: true })
     school: School;
+
+    @Prop({required:true})
+    profileImage: string
 }
 
 export const TeacherSchema = SchemaFactory.createForClass(Teacher);

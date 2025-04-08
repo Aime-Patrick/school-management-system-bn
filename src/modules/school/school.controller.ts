@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Post, Get, Put, Delete, Param, Req, UseGuards, UploadedFile } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Post, Get, Put, Delete, Param, Req, UseGuards, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { SchoolService } from './school.service';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/guard/jwt-auth.guard';
@@ -19,6 +19,7 @@ export class SchoolController {
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.SCHOOL_ADMIN)
+    @UseInterceptors(FileInterceptor('schoolLogo'))
     @ApiConsumes('multipart/form-data')
     @ApiOperation({ summary: 'Create school', description: 'Create a new school record.' })
     async createSchool(@Body() createSchoolDto: CreateSchoolDto,@UploadedFile() file: Express.Multer.File, @Req() req) {
@@ -44,6 +45,20 @@ export class SchoolController {
     async findAllSchools() {
         try {
             return await this.schoolService.findAllSchools();
+        } catch (error) {
+            console.error('Error fetching schools:', error);
+            throw error;
+        }
+    }
+
+    @Get('school-admin')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.SYSTEM_ADMIN, UserRole.SCHOOL_ADMIN)
+    @ApiOperation({ summary: 'check if school has registered a school' })
+    async isSchoolAdminHasSchool(@Req() req) {
+        try {
+            return await this.schoolService.isSchoolAdminHasSchool(req.user);
         } catch (error) {
             console.error('Error fetching schools:', error);
             throw error;

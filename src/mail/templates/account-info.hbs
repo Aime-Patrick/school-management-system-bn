@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f9f9f9;
+        color: #333;
+        padding: 0;
+        margin: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: auto;
+        background: #ffffff;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        text-align: center;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #ddd;
+      }
+      .header h1 {
+        color: #2a7ae4;
+        margin: 0;
+      }
+      .content {
+        padding: 20px 0;
+      }
+      .info {
+        background-color: #f1f5f9;
+        padding: 15px;
+        border-radius: 5px;
+      }
+      .info p {
+        margin: 10px 0;
+      }
+      .footer {
+        text-align: center;
+        margin-top: 30px;
+        font-size: 13px;
+        color: #888;
+      }
+      .footer a {
+        color: #2a7ae4;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <p>Welcome to our School Management System</p>
+      </div>
+
+      <div class="content">
+        <p>Dear {{fullName}},</p>
+        <p>Your account has been successfully created. Below are your login details:</p>
+
+        <div class="info">
+          <p><strong>Email:</strong> {{email}}</p>
+          <p><strong>Password:</strong> {{password}}</p>
+          <p><strong>Role:</strong> {{role}}</p>
+        </div>
+
+        <p>Please keep this information secure. You can log in using the school portal.</p>
+      </div>
+
+      <div class="footer">
+        <p>&copy; {{year}} sms. All rights reserved.</p>
+        <p>
+          Contact us: <a href="mailto:{{contactEmail}}">{{contactEmail}}</a> |
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

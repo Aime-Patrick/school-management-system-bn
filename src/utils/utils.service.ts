@@ -63,18 +63,15 @@ export class HashService {
           if (!supportedExtensions.includes(fileExtension)) {
             throw new Error(`Unsupported file type: ${fileExtension}`);
           }
-      
-          // Create a temporary file and write buffer content to it
+
           const tempFilePath = path.join(__dirname, `temp-${uuidv4()}${fileExtension}`);
           await fs.writeFile(tempFilePath, file.buffer);
       
-          // Upload file to Cloudinary
           const result = await cloudinary.uploader.upload(tempFilePath, {
             folder: 'school-management-mis',
             resource_type: 'auto',
           });
       
-          // Delete the temporary file after successful upload
           await fs.unlink(tempFilePath);
       
           return {

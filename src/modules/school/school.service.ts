@@ -1,11 +1,15 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { School } from 'src/schemas/school.schema';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import { CreateSchoolDto } from './dto/create-school.dto';
+import { User } from 'src/schemas/user.schema';
 @Injectable()
 export class SchoolService {
-    constructor(@InjectModel(School.name) private schoolModel: Model<School>) {}
+    constructor(
+        @InjectModel(School.name) private schoolModel: Model<School>,
+        @InjectModel(User.name) private userModel: Model<User>,
+) {}
 
     async createSchool(createSchoolDto: CreateSchoolDto, schoolAdmin: string, uploadedFile:string): Promise<School> {
         const existingSchool = await this.schoolModel.findOne({
@@ -42,4 +46,13 @@ export class SchoolService {
     async deleteSchool(schoolId: string): Promise<void> {
         await this.schoolModel.findByIdAndDelete(schoolId).exec();
     }
+
+    isSchoolAdminHasSchool = async(userData: any):Promise<Boolean> =>{
+        try {
+            const isSchoolExist = await this.schoolModel.findOne({schoolAdmin: userData.id})
+          return isSchoolExist ? true : false
+        } catch (error) {
+          throw error;
+        }
+      }
 }

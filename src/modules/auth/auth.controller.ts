@@ -17,7 +17,4 @@ export class AuthController {
     async login(@Body() loginDto: LoginDto): Promise<{ message: string; token: string }> {
         return this.authService.login(loginDto);
     }
-
-    // Define your endpoints here
-    // For example, login, register, etc.
 }

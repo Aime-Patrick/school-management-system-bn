@@ -52,6 +52,9 @@ export class Student {
   courseIds: Types.ObjectId[];
   @Prop({ type: Types.ObjectId,ref: 'School' })
   school: Types.ObjectId;
+
+  @Prop({required:true})
+  profileImage: string
 }
 
 export const StudentSchema = SchemaFactory.createForClass(Student);
