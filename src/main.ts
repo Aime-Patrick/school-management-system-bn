@@ -6,7 +6,11 @@ import { ValidationPipe } from '@nestjs/common';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors({
-    origin: "https://school-management-system-fn.vercel.app",
+    origin: [
+      'http://localhost:5173',
+      'https://school-management-system-fn.vercel.app',
+      "https://school-management-system-bn-production.up.railway.app"
+    ],
     Credential:true
   });
   app.useGlobalPipes(new ValidationPipe({
