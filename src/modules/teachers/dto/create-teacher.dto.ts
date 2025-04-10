@@ -44,7 +44,7 @@ export class CreateTeacherDto {
   @IsDate()
   @IsNotEmpty()
   @Type(()=> Date)
-  hireDate: Date;
+  hiredDate: Date;
 
   @ApiProperty({ example: 'active', enum: TeacherStatus })
   @IsEnum(TeacherStatus)

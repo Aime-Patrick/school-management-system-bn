@@ -47,10 +47,10 @@ export class SchoolService {
         await this.schoolModel.findByIdAndDelete(schoolId).exec();
     }
 
-    isSchoolAdminHasSchool = async(userData: any):Promise<Boolean> =>{
+    isSchoolAdminHasSchool = async(userData: any):Promise<{schoolId:string, isSchoolExist:boolean}> =>{
         try {
             const isSchoolExist = await this.schoolModel.findOne({schoolAdmin: userData.id})
-          return isSchoolExist ? true : false
+          return isSchoolExist ? {schoolId: isSchoolExist.id,isSchoolExist:true} : {schoolId: "",isSchoolExist:false}
         } catch (error) {
           throw error;
         }

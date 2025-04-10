@@ -6,8 +6,10 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Teacher, TeacherSchema } from '../../schemas/teacher.schema';
 import { School, SchoolSchema } from '../../schemas/school.schema';
 import { User, UserSchema } from 'src/schemas/user.schema';
+import { MailModule } from '../mail/mail.module';
 @Module({
   imports: [UtilsModule,
+    MailModule,
     MongooseModule.forFeature([{ name: Teacher.name, schema: TeacherSchema },
       { name: School.name, schema: SchoolSchema },
       { name: User.name, schema: UserSchema }

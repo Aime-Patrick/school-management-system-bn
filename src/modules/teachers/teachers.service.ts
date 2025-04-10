@@ -11,7 +11,7 @@ import { School } from 'src/schemas/school.schema';
 import { HashService } from 'src/utils/utils.service';
 import { User, UserRole } from 'src/schemas/user.schema';
 import { ExceptionsHandler } from '@nestjs/core/exceptions/exceptions-handler';
-
+import { MailService } from '../mail/mail.service';
 interface ITeacher extends Teacher {
   _id: Types.ObjectId;
 }
@@ -22,60 +22,77 @@ export class TeachersService {
     @InjectModel(School.name) private schoolModel: Model<School>,
     @InjectModel(User.name) private userModel: Model<User>,
     private hashUtils: HashService,
+    private mailService: MailService,
   ) {}
   async createTeacher(
     createTeacherDto: CreateTeacherDto,
     schoolAdmin: string,
-  ): Promise<{
-    newTeacher: Teacher;
-    teacherPassword: string;
-  }> {
+  ): Promise<{ newTeacher: Teacher; teacherPassword: string }> {
     try {
-      const school = await this.schoolModel
-        .findOne({ schoolAdmin: schoolAdmin })
-        .exec();
-      if (!school) {
-        throw new BadRequestException('School not found');
-      }
+      const school = await this.schoolModel.findOne({ schoolAdmin }).exec();
+      if (!school) throw new BadRequestException('School not found');
+  
       const existingTeacher = await this.teacherModel.findOne({
         firstName: createTeacherDto.firstName,
         lastName: createTeacherDto.lastName,
       });
-      if (existingTeacher) {
-        throw new BadRequestException('Teacher already exists');
-      }
+      if (existingTeacher) throw new BadRequestException('Teacher already exists');
+  
       const existingUser = await this.userModel.findOne({
-        email: createTeacherDto.email,
+        $or: [
+          { email: createTeacherDto.email },
+          { phoneNumber: createTeacherDto.phoneNumber }
+        ]
       });
-      if (existingUser) {
-        throw new BadRequestException('user already exists');
-      }
+      
+      if (existingUser) throw new BadRequestException('Phone number or account is already in use');
+  
+      // generate credentials first
+      const password = this.hashUtils.generatePassword(createTeacherDto.firstName);
+      const hashedPassword = await this.hashUtils.hashPassword(password);
+      const user = new this.userModel({
+        username: this.hashUtils.generateUsernameForTeacher(
+          createTeacherDto.firstName,
+          createTeacherDto.lastName,
+        ),
+        email: createTeacherDto.email,
+        phoneNumber: createTeacherDto.phoneNumber,
+        password: hashedPassword,
+        role: UserRole.TEACHER,
+      });
+      await user.save();
+  
       const createdTeacher = new this.teacherModel({
         ...createTeacherDto,
         school: school._id,
+        accountCredentails: user._id,
       });
-      await createdTeacher.save();
-      const { newTeacher, password } = await this.createTeacherCredentials(
-        createdTeacher,
-        createTeacherDto.email,
-        createTeacherDto.phoneNumber,
-      );
+      const newTeacher = await createdTeacher.save();
+      await this.mailService.sendAccountInfoEmail(user.email,user.username,password, UserRole.TEACHER)
       return {
-        newTeacher,
+        newTeacher: await newTeacher.populate('school'),
         teacherPassword: password,
       };
     } catch (error) {
       throw error;
     }
   }
+  
 
   async createTeacherCredentials(
     teacher: ITeacher,
     email: string,
     phoneNumber: string,
   ) {
-    const password = this.hashUtils.generatePassword(teacher.firstName);
+    try {
+      const password = this.hashUtils.generatePassword(teacher.firstName);
     const hashedPassword = await this.hashUtils.hashPassword(password);
+
+    const existingPhone = await this.userModel.findOne({ phoneNumber });
+    console.log(existingPhone)
+  if (existingPhone) {
+    throw new BadRequestException('Phone number is already in use');
+  }
     const user = new this.userModel({
       username: this.hashUtils.generateUsernameForTeacher(
         teacher.firstName,
@@ -100,6 +117,9 @@ export class TeachersService {
     }
 
     return { newTeacher, password };
+    } catch (error) {
+      throw error;
+    }
   }
 
   async getTeachersBySchool(schoolId: string): Promise<Teacher[]> {
@@ -107,6 +127,7 @@ export class TeachersService {
       const teachers = await this.teacherModel
         .find({ school: schoolId })
         .populate('school')
+        .populate('accountCredentails')
         .exec();
 
       return teachers;

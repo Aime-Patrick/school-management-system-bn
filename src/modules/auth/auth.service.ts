@@ -35,7 +35,7 @@ export class AuthService {
       if (!isPasswordValid) {
         throw new UnauthorizedException('Invalid password');
       }
-      const token = this.jwtService.sign({ id: user.id, role: user.role , email:user.email, username:user.username},{expiresIn : '1h'});
+      const token = this.jwtService.sign({ id: user.id, role: user.role , email:user.email, username:user.username},{expiresIn : loginDto.rememberMe ? '30d' : '1h'});
       return { message: 'login successfull', token };
     } catch (error) {
       throw error;

@@ -16,7 +16,7 @@ export enum TeacherGender {
 
 @Schema({ timestamps: true })
 export class Teacher {
-    @Prop({ type: Types.ObjectId, ref: 'User' })
+    @Prop({ type: mongoose.Schema.ObjectId, ref: 'User' })
     accountCredentails: User;
     @Prop({ required: true })
     firstName: string;
@@ -34,7 +34,7 @@ export class Teacher {
     city: string;
 
     @Prop({ required: true })
-    hireDate: Date;
+    hiredDate: Date;
 
     @Prop({ required: true })
     status: TeacherStatus;
@@ -51,7 +51,7 @@ export class Teacher {
     @Prop({ type: mongoose.Schema.ObjectId, ref: 'School', required: true })
     school: School;
 
-    @Prop({required:true})
+    @Prop({required:false})
     profileImage: string
 }
 
