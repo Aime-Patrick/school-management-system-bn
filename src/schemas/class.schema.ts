@@ -6,8 +6,8 @@ export class Class extends Document {
   @Prop({ required: true })
   name: string;
 
-  @Prop({ required: true })
-  grade: string; // Example: "Grade 1", "Grade 2"
+  @Prop({ required: false })
+  grade: string;
 
   @Prop({ required: true, type: Types.ObjectId, ref: 'School' })
   school: Types.ObjectId;
