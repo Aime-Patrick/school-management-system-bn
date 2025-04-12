@@ -6,6 +6,15 @@ import { promises as fs } from 'fs';
 import * as path from 'path';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
+
+export interface UploadedFile {
+  name: string;
+  url: string;
+  type: string;
+  size: number;
+  width?: number;
+  height?: number;
+}
 @Injectable()
 export class HashService {
     constructor(
@@ -50,43 +59,35 @@ export class HashService {
         const randomString = crypto.randomBytes(2).toString('hex');
         return `${firstName.toLowerCase()}-${lastName.toLowerCase()}-${randomString}`;
       }
-
-      async uploadFileToCloudinary(file: Express.Multer.File): Promise<{ message: string; uploadedFile: any }> {
+      
+      async uploadFileToCloudinary(file: Express.Multer.File): Promise<UploadedFile> {
         if (!file || !file.originalname) {
           throw new Error('No file uploaded');
         }
       
         const supportedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.tiff', '.pdf'];
       
-        try {
-          const fileExtension = path.extname(file.originalname).toLowerCase();
-          if (!supportedExtensions.includes(fileExtension)) {
-            throw new Error(`Unsupported file type: ${fileExtension}`);
-          }
-
-          const tempFilePath = path.join(__dirname, `temp-${uuidv4()}${fileExtension}`);
-          await fs.writeFile(tempFilePath, file.buffer);
-      
-          const result = await cloudinary.uploader.upload(tempFilePath, {
-            folder: 'school-management-mis',
-            resource_type: 'auto',
-          });
-      
-          await fs.unlink(tempFilePath);
-      
-          return {
-            message: 'File uploaded successfully',
-            uploadedFile: {
-              name: result.public_id,
-              url: result.secure_url,
-              type: result.format,
-              size: result.bytes,
-              ...(result.width && result.height ? { width: result.width, height: result.height } : {}),
-            },
-          };
-        } catch (error: any) {
-          console.error('Cloudinary upload error:', error);
-          throw new Error('Failed to upload file to Cloudinary: ' + error.message);
+        const fileExtension = path.extname(file.originalname).toLowerCase();
+        if (!supportedExtensions.includes(fileExtension)) {
+          throw new Error(`Unsupported file type: ${fileExtension}`);
         }
-      }
+      
+        const tempFilePath = path.join(__dirname, `temp-${uuidv4()}${fileExtension}`);
+        await fs.writeFile(tempFilePath, file.buffer);
+      
+        const result = await cloudinary.uploader.upload(tempFilePath, {
+          folder: 'school-management-mis',
+          resource_type: 'auto',
+        });
+      
+        await fs.unlink(tempFilePath);
+      
+        return {
+          name: result.public_id,
+          url: result.secure_url,
+          type: result.format,
+          size: result.bytes,
+          ...(result.width && result.height ? { width: result.width, height: result.height } : {}),
+        };
+      }      
 }

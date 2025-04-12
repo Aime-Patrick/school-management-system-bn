@@ -17,6 +17,7 @@ import { ClassesModule } from './modules/classes/classes.module';
 import { EventsModule } from './modules/events/events.module';
 import { ResultModule } from './modules/result/result.module';
 import { AppController } from './app.controller';
+import { PaymentModule } from './modules/payment/payment.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ load: [databaseConfig] }),
@@ -40,6 +41,7 @@ import { AppController } from './app.controller';
     QuizesModule,
     AssignmentsModule,
     FinancialModule,
+    PaymentModule,
     SeedersModule,
   ],
   controllers: [AppController],

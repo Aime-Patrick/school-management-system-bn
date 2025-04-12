@@ -25,6 +25,9 @@ export class School {
 
   @Prop({ required: true , enum: ["active", "disactive"], default: "active" })
   status : "active" | "disactive"
+
+  @Prop({required: false})
+  activeUntil: Date;
 }
 
 export const SchoolSchema = SchemaFactory.createForClass(School);
