@@ -8,10 +8,10 @@ import {
   Delete,
   Query,
   UseInterceptors,
-  UploadedFile,
   UseGuards,
   BadRequestException,
   Req,
+  UploadedFiles,
 } from '@nestjs/common';
 import { FinanceService } from './finance.service';
 import {
@@ -50,21 +50,30 @@ export class FinanceController {
   @UseInterceptors(FileInterceptor('receipt'))
   async createPayment(
     @Body() createPaymentDto: CreatePaymentDto,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFiles() files: Express.Multer.File[],
     @Req() req,
   ) {
     try {
-      if (!file) {
+      if (!files || files.length === 0) {
         throw new BadRequestException(
-          'No file received. Make sure you are uploading a file.',
+          'No files received. Make sure you are uploading at least one file.',
         );
       }
+  
       const schoolAdmin = req.user.id;
-      const { uploadedFile } =
-        await this.hashService.uploadFileToCloudinary(file);
+  
+      const uploadedFiles: any[] = [];
+      for (const file of files) {
+        const uploadedFile  = await this.hashService.uploadFileToCloudinary(file);
+        uploadedFiles.push(uploadedFile);
+      }
+  
+      // If you're expecting just 1 file for `proof`, pick the first one:
+      const proofUrl = uploadedFiles[0]?.url;
+  
       return this.financeService.createPayment(
         createPaymentDto,
-        uploadedFile.url,
+        proofUrl,
         schoolAdmin,
       );
     } catch (error) {

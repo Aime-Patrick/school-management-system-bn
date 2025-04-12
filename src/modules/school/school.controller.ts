@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Post, Get, Put, Delete, Param, Req, UseGuards, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Post, Get, Put, Delete, Param, Req, UseGuards, UploadedFile, UseInterceptors, UploadedFiles } from '@nestjs/common';
 import { SchoolService } from './school.service';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/guard/jwt-auth.guard';
@@ -22,16 +22,23 @@ export class SchoolController {
     @UseInterceptors(FileInterceptor('schoolLogo'))
     @ApiConsumes('multipart/form-data')
     @ApiOperation({ summary: 'Create school', description: 'Create a new school record.' })
-    async createSchool(@Body() createSchoolDto: CreateSchoolDto,@UploadedFile() file: Express.Multer.File, @Req() req) {
+    async createSchool(@Body() createSchoolDto: CreateSchoolDto,@UploadedFiles() files: Express.Multer.File[], @Req() req) {
         try {
-            if (!file) {
-                throw new BadRequestException(
-                  'No file received. Make sure you are uploading a file.',
-                );
-              }
+            if (!files || files.length === 0) {
+              throw new BadRequestException(
+                'No files received. Make sure you are uploading at least one file.',
+              );
+            }
+        
             const schoolAdmin = req.user.id;
-            const { uploadedFile } = await this.hashService.uploadFileToCloudinary(file);
-            return await this.schoolService.createSchool(createSchoolDto, schoolAdmin, uploadedFile.url);
+        
+            const uploadedFiles: any[] = [];
+            for (const file of files) {
+              const uploadedFile  = await this.hashService.uploadFileToCloudinary(file);
+              uploadedFiles.push(uploadedFile);
+            }
+        
+            return await this.schoolService.createSchool(createSchoolDto, schoolAdmin, uploadedFiles[0].url);
         } catch (error) {
             throw error;
         }
