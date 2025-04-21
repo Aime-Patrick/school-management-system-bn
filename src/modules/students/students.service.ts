@@ -279,4 +279,8 @@ export class StudentsService {
     const students = await this.studentModel.find().populate('school').select('-accountCredentails').exec();
     return students;
   }
+
+  async findStudentById(userId:string): Promise<Teacher | null>{
+      return await this.studentModel.findOne({ "accountCredentails._id": new Types.ObjectId(userId) });
+    }
 }

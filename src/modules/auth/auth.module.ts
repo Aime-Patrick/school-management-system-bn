@@ -9,7 +9,9 @@ import { ConfigService, ConfigModule } from '@nestjs/config';
 import { UtilsModule } from '../../utils/utils.module';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from 'src/guard/jwt-auth.guard';
-
+import { Teacher, TeacherSchema} from 'src/schemas/teacher.schema';
+import { Student, StudentSchema } from 'src/schemas/student.schema';
+import { School, SchoolSchema } from 'src/schemas/school.schema';
 @Module({
   imports: [
     ConfigModule,
@@ -23,6 +25,9 @@ import { JwtAuthGuard } from 'src/guard/jwt-auth.guard';
         }),
     }),
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    MongooseModule.forFeature([{ name: Teacher.name, schema: TeacherSchema }]),
+    MongooseModule.forFeature([{ name: Student.name, schema: StudentSchema }]),
+    MongooseModule.forFeature([{ name: School.name, schema: SchoolSchema }]),
     UtilsModule,
   ],
   providers: [AuthService, JwtStrategy, JwtAuthGuard],

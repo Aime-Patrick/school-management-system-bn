@@ -7,7 +7,7 @@ export enum paymentStatus{
     REJECTED="rejected"
 }
 
-enum paymentPlan{
+export enum paymentPlan{
     MONTHLY="monthly",
     quarterly="quarterly",
     YEARLY="yearly"
@@ -31,6 +31,9 @@ export class Payment {
 
     @Prop({ required: true, type: Date })
     date: Date;
+
+    @Prop({required: true, type: Number , default: 0})
+    totalPayment: number
 }
 
 export const PaymentSchema = SchemaFactory.createForClass(Payment);

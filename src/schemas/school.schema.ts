@@ -5,6 +5,7 @@ import { Teacher } from "./teacher.schema";
 import { InjectModel } from "@nestjs/mongoose";
 import { Student } from "./student.schema";
 import { Course } from "./course.schema";
+import { subscriptionPlan } from "./plan.schema";
 
 @Schema({ timestamps: true })
 export class School {
@@ -26,8 +27,18 @@ export class School {
   @Prop({ required: true , enum: ["active", "disactive"], default: "active" })
   status : "active" | "disactive"
 
-  @Prop({required: false})
-  activeUntil: Date;
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'subscriptionPlan' })
+  subscriptionPlan: subscriptionPlan;
+
+  @Prop()
+  subscriptionStart: Date;
+
+  @Prop()
+  subscriptionEnd: Date;
+
+  @Prop({ default: false })
+  isActive: boolean;
+
 }
 
 export const SchoolSchema = SchemaFactory.createForClass(School);

@@ -18,6 +18,8 @@ import { EventsModule } from './modules/events/events.module';
 import { ResultModule } from './modules/result/result.module';
 import { AppController } from './app.controller';
 import { PaymentModule } from './modules/payment/payment.module';
+import { SystemAdminModule } from './modules/system-admin/system-admin.module';
+import { PlanModule } from './modules/plan/plan.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ load: [databaseConfig] }),
@@ -30,6 +32,7 @@ import { PaymentModule } from './modules/payment/payment.module';
     }),
     AuthModule,
     UsersModule,
+    SystemAdminModule,
     SchoolModule,
     CoursesModule,
     TeachersModule,
@@ -43,6 +46,7 @@ import { PaymentModule } from './modules/payment/payment.module';
     FinancialModule,
     PaymentModule,
     SeedersModule,
+    PlanModule,
   ],
   controllers: [AppController],
   providers: [],

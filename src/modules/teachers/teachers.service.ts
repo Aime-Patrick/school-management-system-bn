@@ -189,4 +189,8 @@ export class TeachersService {
       throw new InternalServerErrorException('Failed to delete teacher');
     }
   }
+
+  async findTeacherById(userId:string): Promise<Teacher | null>{
+    return await this.teacherModel.findOne({ "accountCredentails._id": new Types.ObjectId(userId) });
+  }
 }

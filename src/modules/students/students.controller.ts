@@ -7,16 +7,17 @@ import { Roles } from 'src/decorator/roles.decorator';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { StudentEnrollIntoCourseDto } from './dto/student-enroll-course.dto';
 import { UserRole } from 'src/schemas/user.schema';
+import { SubscriptionGuard } from 'src/guard/plan/plan.guard';
 
 @ApiTags('students')
 @Controller('students')
+@UseGuards(JwtAuthGuard, RolesGuard,SubscriptionGuard)
 export class StudentsController {
     constructor(private readonly studentsService: StudentsService) {}
 
     @Post()
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('school-admin', 'teacher')
+    @Roles(UserRole.SCHOOL_ADMIN, UserRole.TEACHER)
     @ApiOperation({ summary: 'Create student', description: 'Create a new student record.' })
     async createStudent(@Body() createStudentDto: CreateStudentDto, @Req() req) {
         try {
@@ -30,8 +31,7 @@ export class StudentsController {
 
     @Get()
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('school-admin', 'teacher')
+    @Roles(UserRole.SCHOOL_ADMIN, UserRole.TEACHER)
     @ApiOperation({ summary: 'Get all students', description: 'Retrieve all students for the school.' })
     async findAllStudents(@Req() req) {
         try {
@@ -42,22 +42,9 @@ export class StudentsController {
         }
     }
 
-    @Get('all-students')
-    @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(UserRole.SYSTEM_ADMIN)
-    @ApiOperation({ summary: 'Get All student', description: 'Retrieve all students in system' })
-    async getAllStudent() {
-        try {
-            return await this.studentsService.getAllStudent();
-        } catch (error) {
-            throw error;
-        }
-    }
 
     @Get(':regNumber')
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.SCHOOL_ADMIN, UserRole.TEACHER, UserRole.STUDENT)
     @ApiOperation({ summary: 'Get student by registration number', description: 'Retrieve a student by their registration number.' })
     async findStudentByRegistrationNumber(@Param('regNumber') regNumber: string, @Req() req) {
@@ -72,8 +59,7 @@ export class StudentsController {
 
     @Put(':regNumber')
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('school-admin')
+    @Roles(UserRole.SCHOOL_ADMIN)
     @ApiOperation({ summary: 'Update student', description: 'Update a student record by their registration number.' })
     async updateStudent(@Param('regNumber') regNumber: string, @Body() createStudentDto: CreateStudentDto, @Req() req) {
         try {
@@ -87,8 +73,7 @@ export class StudentsController {
 
     @Delete(':regnNumber')
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('school-admin')
+    @Roles(UserRole.SCHOOL_ADMIN)
     @ApiOperation({ summary: 'Delete student', description: 'Delete a student record by their registration number.' })
     async deleteStudent(@Param('regNumber') regNumber: string, @Req() req) {
         try {
@@ -102,7 +87,6 @@ export class StudentsController {
 
     @Post('enroll-course')
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.STUDENT)
     @ApiOperation({ summary: 'Enroll student into course', description: 'Enroll a student into a course.' })
     async studentEnrollIntoCourse(@Body() studentEnrollIntoCourseDto: StudentEnrollIntoCourseDto, @Req() req) {
@@ -116,7 +100,6 @@ export class StudentsController {
 
     @Delete('enroll-course/:studentId/:courseId')
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(UserRole.STUDENT,UserRole.TEACHER, UserRole.SCHOOL_ADMIN)
     @ApiOperation({ summary: 'Remove student from enrolled course', description: 'Remove a student from an enrolled course.' })
     async removeStudentFromEnroll(@Param('studentId') studentId: string, @Param('courseId') courseId: string) {

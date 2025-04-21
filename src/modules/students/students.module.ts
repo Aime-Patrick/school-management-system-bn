@@ -19,8 +19,8 @@ import { Teacher, TeacherSchema } from 'src/schemas/teacher.schema';
       { name: Teacher.name, schema: TeacherSchema },
     ]),
   ],
-  exports: [StudentsService],
   controllers: [StudentsController],
   providers: [StudentsService],
+  exports: [StudentsService],
 })
 export class StudentsModule {}

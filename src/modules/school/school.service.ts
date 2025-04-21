@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { School } from 'src/schemas/school.schema';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
@@ -54,5 +54,28 @@ export class SchoolService {
         } catch (error) {
           throw error;
         }
+    }
+
+    async checkSchoolSubscription(schoolId: string) {
+        const school = await this.schoolModel
+          .findById(schoolId)
+          .populate('subscriptionPlan');
+    
+        if (!school) {
+          throw new NotFoundException('School not found');
+        }
+        const now = new Date();
+        const isActive =
+          school.isActive &&
+          school.subscriptionStart &&
+          school.subscriptionEnd &&
+          now >= school.subscriptionStart &&
+          now <= school.subscriptionEnd;
+    
+        return {
+          isActive,
+          plan: isActive ? school.subscriptionPlan : null,
+        };
       }
+      
 }
