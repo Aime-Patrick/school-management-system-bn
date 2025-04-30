@@ -19,9 +19,17 @@ export class SubscriptionGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const schoolId = request.user?.schoolId;
 
+    const now = new Date();
     const school = await this.schoolModel.findById(schoolId);
+    const isActive =
+          school &&
+          school.isActive &&
+          school.subscriptionStart &&
+          school.subscriptionEnd &&
+          now >= school.subscriptionStart &&
+          now <= school.subscriptionEnd;
 
-    if (!school || !school.isActive || new Date() > new Date(school.subscriptionEnd)) {
+    if (!isActive) {
       throw new ForbiddenException('Your subscription plan is inactive or expired.');
     }
 

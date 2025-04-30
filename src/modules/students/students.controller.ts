@@ -1,6 +1,6 @@
-import { Body, Controller, Post, Get, Put, Delete, Param, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Get, Put, Delete, Param, Req, UseGuards, UseInterceptors, UploadedFiles, BadRequestException, UploadedFile } from '@nestjs/common';
 import { StudentsService } from './students.service';
-import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/guard/jwt-auth.guard';
 import { RolesGuard } from 'src/guard/roles.guard';
 import { Roles } from 'src/decorator/roles.decorator';
@@ -8,20 +8,31 @@ import { CreateStudentDto } from './dto/create-student.dto';
 import { StudentEnrollIntoCourseDto } from './dto/student-enroll-course.dto';
 import { UserRole } from 'src/schemas/user.schema';
 import { SubscriptionGuard } from 'src/guard/plan/plan.guard';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { HashService } from 'src/utils/utils.service';
 
 @ApiTags('students')
 @Controller('students')
 @UseGuards(JwtAuthGuard, RolesGuard,SubscriptionGuard)
 export class StudentsController {
-    constructor(private readonly studentsService: StudentsService) {}
+    constructor(private readonly studentsService: StudentsService,
+                private hashService:HashService
+    ) {}
 
     @Post()
     @ApiBearerAuth()
     @Roles(UserRole.SCHOOL_ADMIN, UserRole.TEACHER)
+    @ApiConsumes('multipart/form-data')
+    @UseInterceptors(FileInterceptor('profilePicture'))
     @ApiOperation({ summary: 'Create student', description: 'Create a new student record.' })
-    async createStudent(@Body() createStudentDto: CreateStudentDto, @Req() req) {
+    async createStudent(@Body() createStudentDto: CreateStudentDto, @Req() req,  @UploadedFile() file: Express.Multer.File,) {
         try {
             const schoolAdmin = req.user.id;
+            if (!file) {
+                throw new BadRequestException('No file received. Make sure you are uploading at least one file.');
+            }
+            const uploadedFile = await this.hashService.uploadFileToCloudinary(file);
+            createStudentDto.profilePicture = uploadedFile.url;
             return await this.studentsService.createStudent(createStudentDto, schoolAdmin);
         } catch (error) {
             console.error('Error creating student:', error);
@@ -111,3 +122,4 @@ export class StudentsController {
         }
     }
 }
+

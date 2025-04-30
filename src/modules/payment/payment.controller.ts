@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Post, UploadedFile, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Post, Put, Param, UploadedFile, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from 'src/decorator/roles.decorator';
@@ -8,6 +8,8 @@ import { UserRole } from 'src/schemas/user.schema';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { HashService } from 'src/utils/utils.service';
 import { RecordPaymentDto } from './dto/record-payment.dto';
+import { paymentStatus } from 'src/schemas/payment.schema';
+import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
 
 @ApiTags('payment')
 @Controller('payment')
@@ -26,7 +28,7 @@ export class PaymentController {
     summary: 'Record plan payment',
     description: 'Create a new payment record with optional proof files.',
     })
-    @UseInterceptors(FilesInterceptor('proof')) // Use FilesInterceptor for multiple
+    @UseInterceptors(FilesInterceptor('proof')) 
     async createPayment(
     @Body() recordPaymentDto: RecordPaymentDto,
     @UploadedFiles() files: Express.Multer.File[],
@@ -63,4 +65,21 @@ export class PaymentController {
         throw error;
     }
 }
+
+    @Put('status/:paymentId')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.SYSTEM_ADMIN)
+    @ApiOperation({ summary: 'Update payment status', description: 'Approve or reject a payment by its ID.' })
+    async updatePaymentStatus(
+      @Param('paymentId') paymentId: string,
+      @Body() updatePaymentStatusDto: UpdatePaymentStatusDto
+    ) {
+      try {
+        const { status } = updatePaymentStatusDto;
+        return await this.paymentService.updatePaymentStatus(paymentId, status);
+      } catch (error) {
+        throw error;
+      }
+    }
 }

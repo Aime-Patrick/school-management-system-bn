@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { RecordPaymentDto } from './dto/record-payment.dto';
 import { Payment, paymentStatus } from 'src/schemas/payment.schema';
 import { InjectModel } from '@nestjs/mongoose';
@@ -38,4 +38,29 @@ export class PaymentService {
             throw error;
         }
     }
+
+    async updatePaymentStatus(paymentId: string, status: paymentStatus): Promise<{ message: string; payment: Payment }> {
+        try {
+          const payment = await this.paymentModel.findById(paymentId);
+      
+          if (!payment) {
+            throw new NotFoundException('Payment not found');
+          }
+      
+          if (payment.status === status) {
+            throw new BadRequestException(`Payment is already ${status}`);
+          }
+      
+          payment.status = status;
+          await payment.save();
+      
+          const message = status === paymentStatus.APPROVED 
+            ? 'Payment approved successfully' 
+            : 'Payment rejected successfully';
+      
+          return { message, payment };
+        } catch (error) {
+          throw error;
+        }
+      }
 }

@@ -50,18 +50,21 @@ export class AuthService {
         role: user.role,
         email: user.email,
         username: user.username,
+        
       };
   
       // Inject schoolId based on role
       if (user.role === UserRole.TEACHER) {
-        const teacher = await this.teacherModel.findOne({ accountCredentails: user._id });
+        const teacher = await this.teacherModel.findOne({ accountCredentials: user._id.toString() });
         if (teacher) payload.schoolId = teacher.school.toString();
       } else if (user.role === UserRole.STUDENT) {
-        const student = await this.studentModel.findOne({ accountCredentails: user._id });
+        const student = await this.studentModel.findOne({ accountCredentials: user._id.toString() });
         if (student) payload.schoolId = student.school.toString();
       } else if (user.role === UserRole.SCHOOL_ADMIN) {
-        const admin = await this.schoolModel.findOne({ schoolAdmin: user._id });
-        if (admin) payload.schoolId = admin._id;
+        const admin = await this.schoolModel.findOne({ schoolAdmin: user._id.toString() });
+        if (admin) payload.schoolId = admin._id.toString();
+      } else {
+        throw new UnauthorizedException('Invalid user role');
       }
   
       const token = this.jwtService.sign(payload, {

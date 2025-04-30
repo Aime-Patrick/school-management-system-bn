@@ -12,7 +12,7 @@ import { UpdateTermDto } from './dto/update-term.dto';
 @ApiTags('terms')
 @Roles(UserRole.SCHOOL_ADMIN)
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Controller('terms')
+@Controller('academic/terms')
 export class TermController {
   constructor(private readonly termService: TermService) {}
 

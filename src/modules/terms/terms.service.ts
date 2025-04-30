@@ -14,7 +14,7 @@ export class TermService {
   }
 
   async getAllTerms(): Promise<Term[]> {
-    return await this.termModel.find().exec();
+    return await this.termModel.find().populate('academicYear').exec();
   }
 
   async getTermById(id: string): Promise<Term | null> {
@@ -22,7 +22,7 @@ export class TermService {
   }
 
   async updateTerm(id: string, updateTermDto: UpdateTermDto): Promise<Term | null> {
-    return await this.termModel.findByIdAndUpdate(id, updateTermDto, { new: true }).exec();
+    return await this.termModel.findByIdAndUpdate(id, updateTermDto, { new: true }).populate('academicYear').exec();
   }
 
   async deleteTerm(id: string): Promise<boolean> {

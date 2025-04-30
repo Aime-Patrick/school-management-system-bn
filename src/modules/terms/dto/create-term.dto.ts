@@ -3,6 +3,11 @@ import { IsString, IsNotEmpty, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateTermDto {
+  @ApiProperty({ example: '2345678kjhgfdfg', description: 'Academic year Id' })
+  @IsString()
+  @IsNotEmpty({ message: 'Academic year is required' })
+  academicYear: string;
+
   @ApiProperty({ example: 'Term 1', description: 'The name of the term' })
   @IsString()
   @IsNotEmpty()

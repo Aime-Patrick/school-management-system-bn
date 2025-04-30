@@ -120,49 +120,77 @@ export class PlanService {
       }
       
       async activateSubscription(schoolId: string): Promise<string> {
-        const payment = await this.paymentnModel
-          .findOne({ schoolId, status: 'approved' })
-          .sort({ date: -1 });
+        const school = await this.schoolnModel.findById(schoolId);
       
-        if (!payment) {
-          throw new NotFoundException('No approved payment found.');
-        }
-
-        const now = new Date();
-        let endDate: Date;
-      
-        switch (payment.plan) {
-          case paymentPlan.MONTHLY:
-            endDate = new Date(now);
-            endDate.setMonth(endDate.getMonth() + 1);
-            break;
-          case paymentPlan.quarterly:
-            endDate = new Date(now);
-            endDate.setMonth(endDate.getMonth() + 3);
-            break;
-          case paymentPlan.YEARLY:
-            endDate = new Date(now);
-            endDate.setFullYear(endDate.getFullYear() + 1);
-            break;
-          default:
-            throw new BadRequestException('Invalid payment plan.');
+        if (!school) {
+          throw new NotFoundException('School not found.');
         }
       
-        await this.schoolnModel.findByIdAndUpdate(
-          schoolId,
-          {
-            $set: {
-              subscriptionStart: now,
-              subscriptionEnd: endDate,
-              isActive: true,
-            },
-          },
-          { new: true }
-        );
+        switch (school.status) {
+          case 'active': {
+            const payment = await this.paymentnModel
+              .findOne({ schoolId, status: 'approved' })
+              .sort({ date: -1 });
       
-        return 'Subscription activated successfully.';
+            if (!payment) {
+              throw new NotFoundException('No approved payment found.');
+            }
+      
+            const now = new Date();
+            let endDate: Date;
+      
+            switch (payment.plan) {
+              case paymentPlan.MONTHLY:
+                endDate = new Date(now);
+                endDate.setMonth(endDate.getMonth() + 1);
+                break;
+              case paymentPlan.quarterly:
+                endDate = new Date(now);
+                endDate.setMonth(endDate.getMonth() + 3);
+                break;
+              case paymentPlan.YEARLY:
+                endDate = new Date(now);
+                endDate.setFullYear(endDate.getFullYear() + 1);
+                break;
+              default:
+                throw new BadRequestException('Invalid payment plan.');
+            }
+      
+            await this.schoolnModel.findByIdAndUpdate(
+              schoolId,
+              {
+                $set: {
+                  subscriptionStart: now,
+                  subscriptionEnd: endDate,
+                  subscriptionPlan: payment.plan,
+                  isActive: true,
+                },
+              },
+              { new: true }
+            );
+      
+            return 'Subscription activated successfully.';
+          }
+      
+          case 'disactive': {
+            await this.schoolnModel.findByIdAndUpdate(
+              schoolId,
+              {
+                $set: {
+                  subscriptionStart: null,
+                  subscriptionEnd: null,
+                  isActive: false,
+                },
+              },
+              { new: true }
+            );
+      
+            return 'Subscription rejected successfully.';
+          }
+      
+          default: {
+            throw new BadRequestException('Invalid subscription status.');
+          }
+        }
       }
-      
-      
-      
 }

@@ -20,6 +20,7 @@ import { AppController } from './app.controller';
 import { PaymentModule } from './modules/payment/payment.module';
 import { SystemAdminModule } from './modules/system-admin/system-admin.module';
 import { PlanModule } from './modules/plan/plan.module';
+import { AcademicModule } from './modules/academic/academic.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ load: [databaseConfig] }),
@@ -47,6 +48,7 @@ import { PlanModule } from './modules/plan/plan.module';
     PaymentModule,
     SeedersModule,
     PlanModule,
+    AcademicModule
   ],
   controllers: [AppController],
   providers: [],

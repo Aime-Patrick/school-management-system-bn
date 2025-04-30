@@ -14,6 +14,7 @@ import { UserRole } from 'src/schemas/user.schema';
 import { StudentEnrollIntoCourseDto } from './dto/student-enroll-course.dto';
 import { Course } from 'src/schemas/course.schema';
 import { Teacher } from 'src/schemas/teacher.schema';
+import { Class } from 'src/schemas/class.schema';
 @Injectable()
 export class StudentsService {
   constructor(
@@ -22,6 +23,7 @@ export class StudentsService {
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Course.name) private courseModel: Model<Course>,
     @InjectModel(Teacher.name) private teacherModel: Model<Teacher>,
+    @InjectModel(Class.name) private classModel: Model<Class>,
     private hashUtils: HashService,
   ) {}
 
@@ -48,6 +50,16 @@ export class StudentsService {
       const existingUser = await this.userModel.findOne({
         phoneNumber: createStudentDto.phoneNumber,
       });
+
+      const existingClass = await this.classModel.findById(createStudentDto.class);
+      if (!existingClass) {
+        throw new BadRequestException('Class not found');
+      }
+      if (!existingClass.school.equals(schoolAdmin._id)) {
+        throw new BadRequestException(
+          'Class does not belong to the same school as the student',
+        );
+      }
   
       if (existingStudent || existingUser) {
         throw new BadRequestException('Phone number already exists');
@@ -73,7 +85,7 @@ export class StudentsService {
       await newStudent.save();
   
       const { user, password } =
-        await this.createStudentCredentials(newStudent);
+        await this.createStudentCredentials(newStudent, createStudentDto.email);
       return {
         newStudent,
         accountCredentails: user,
@@ -88,7 +100,7 @@ export class StudentsService {
     }
   }
 
-  async createStudentCredentials(student: Student) {
+  async createStudentCredentials(student: Student, email?: string) {
     const password = this.hashUtils.generatePassword(student.firstName);
     const hashedPassword = await this.hashUtils.hashPassword(password);
 
@@ -99,7 +111,7 @@ export class StudentsService {
       ),
       password: hashedPassword,
       phoneNumber: student.phoneNumber,
-      email: "none",
+      email: email ? email : "none",
       role: UserRole.STUDENT,
     });
     await user.save();
@@ -111,24 +123,32 @@ export class StudentsService {
   }
 
   async findAllStudents(userId: string): Promise<Student[]> {
-    let school:any;
-    let studentsService:any;
-    const adminSchool = await this.schoolModel.findOne({ scoolAdmin:userId });
+    let school: any;
+    let studentsService: any;
+  
+    const adminSchool = await this.schoolModel.findOne({ schoolAdmin: userId });
     const teacher = await this.teacherModel.findOne({ "accountCredentails._id": new Types.ObjectId(userId) });
-    if (adminSchool){
+  
+    if (adminSchool) {
       school = adminSchool;
-      studentsService = await this.studentModel.find({school}).populate('school')
-      .select('-accountCredentails')
-      .exec();
-    } else if(teacher){
+      studentsService = await this.studentModel
+        .find({ school: school._id })
+        .populate('school')
+        .populate('class')
+        .populate('accountCredentails', 'email')
+        .exec();
+    } else if (teacher) {
       school = teacher?.school;
-      studentsService = await this.studentModel.find({ school }).populate('school')
-      .select('-accountCredentails')
-      .exec();
-    }else{
+      studentsService = await this.studentModel
+        .find({ school })
+        .populate('school')
+        .populate('class')
+        .populate('accountCredentails', 'email')
+        .exec();
+    } else {
       throw new BadRequestException('School not found');
-
     }
+  
     return studentsService;
   }
 
@@ -143,12 +163,14 @@ export class StudentsService {
     if (adminSchool){
       school = adminSchool;
       studentsService = await this.studentModel.find({registrationNumber:regNumber,school}).populate('school')
-      .select('-accountCredentails')
+      .populate('accountCredentails', 'email')
+      .populate('class')
       .exec();
     } else if(teacher){
       school = teacher?.school;
       studentsService = await this.studentModel.find({registrationNumber:regNumber, school }).populate('school')
-      .select('-accountCredentails')
+      .populate('class')
+      .populate('accountCredentails', 'email')
       .exec();
     }else{
       throw new BadRequestException('School not found');

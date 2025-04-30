@@ -8,6 +8,7 @@ import { School, SchoolSchema } from '../../schemas/school.schema';
 import { User, UserSchema } from 'src/schemas/user.schema';
 import { CourseSchema, Course } from 'src/schemas/course.schema';
 import { Teacher, TeacherSchema } from 'src/schemas/teacher.schema';
+import { Class,ClassSchema } from 'src/schemas/class.schema';
 @Module({
   imports: [
     UtilsModule,
@@ -17,6 +18,7 @@ import { Teacher, TeacherSchema } from 'src/schemas/teacher.schema';
       {name: User.name, schema: UserSchema},
       { name: Course.name, schema: CourseSchema },
       { name: Teacher.name, schema: TeacherSchema },
+      { name: Class.name, schema: ClassSchema },
     ]),
   ],
   controllers: [StudentsController],

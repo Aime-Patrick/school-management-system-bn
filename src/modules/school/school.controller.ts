@@ -90,6 +90,7 @@ export class SchoolController {
     @ApiOperation({ summary: 'Check if a school has an active subscription' })
     @ApiResponse({ status: 200, description: 'Subscription status retrieved successfully' })
     @ApiResponse({ status: 404, description: 'School not found' })
+    @ApiResponse({ status: 500, description: 'Internal server error' })
     async checkSubscriptionStatus(@Param('id') schoolId: string) {
         try {
             const subscriptionStatus = await this.schoolService.checkSchoolSubscription(schoolId);

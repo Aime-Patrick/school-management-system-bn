@@ -7,8 +7,8 @@ export enum StudentStatus {
   INACTIVE = 'inactive',
 }
 export enum StudentGender {
-  MALE = 'male',
-  FEMALE = 'female',
+  MALE = 'Male',
+  FEMALE = 'Female',
 }
 
 @Schema({ timestamps: true })
@@ -39,22 +39,25 @@ export class Student {
   @Prop({ required: true })
   city: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: Date, default: Date.now })
   enrollmentDate: Date;
 
-  @Prop()
+  @Prop({ required: false, type: Date })
   graduationDate?: Date;
-  @Prop({ required: true })
+  @Prop({ required: true, enum: StudentStatus, default: StudentStatus.ACTIVE })
   status: StudentStatus;
-  @Prop({ required: false })
-  parentId: string;
-  @Prop({ required: true, ref: "Course" })
+
+  @Prop({ required: true, type: Types.ObjectId, ref: 'Class' })
+  class: Types.ObjectId;
+  // @Prop({ required: false })
+  // parentId: string;
+  @Prop({ required: false, ref: "Course" })
   courseIds: Types.ObjectId[];
   @Prop({ type: Types.ObjectId,ref: 'School' })
   school: Types.ObjectId;
 
   @Prop({required:true})
-  profileImage: string
+  profilePicture: string
 }
 
 export const StudentSchema = SchemaFactory.createForClass(Student);

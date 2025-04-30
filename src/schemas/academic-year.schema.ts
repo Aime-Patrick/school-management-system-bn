@@ -2,10 +2,7 @@ import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Types } from "mongoose";
 
 @Schema({ timestamps: true })
-export class Term {
-  @Prop({ required: true, type: Types.ObjectId, ref: 'Academic' })
-  academicYear: Types.ObjectId;
-
+export class Academic {
   @Prop({ required: true, unique: true })
   name: string;
 
@@ -14,6 +11,9 @@ export class Term {
 
   @Prop({ required: true, type: Date })
   endDate: Date;
+
+  @Prop({ required: true, type: Types.ObjectId, ref: 'School' })
+  school: Types.ObjectId;
 }
 
-export const TermSchema = SchemaFactory.createForClass(Term);
+export const AcademicSchema = SchemaFactory.createForClass(Academic);

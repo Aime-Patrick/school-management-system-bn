@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsEnum, IsDate, IsArray, IsMongoId } from 'class-validator';
+import { IsNotEmpty, IsString, IsEnum, IsDate, IsArray, IsMongoId, IsOptional } from 'class-validator';
 import { StudentGender, StudentStatus } from '../../../schemas/student.schema';
 import { Type } from 'class-transformer';
 
@@ -13,11 +13,6 @@ export class CreateStudentDto {
   @IsString()
   @IsNotEmpty()
   lastName: string;
-
-  @ApiProperty({ example: '123456789' })
-  @IsString()
-  @IsNotEmpty()
-  registrationNumber: string;
 
   @ApiProperty({ example: '2000-01-01' })
   @IsDate()
@@ -51,14 +46,28 @@ export class CreateStudentDto {
   @Type(()=> Date)
   enrollmentDate: Date;
 
-  @ApiProperty({ example: '2026-06-01', required: false })
-  @IsDate()
-  @Type(()=> Date)
-  graduationDate?: Date;
 
-  @ApiProperty({ example: 'active', enum: StudentStatus })
-  @IsEnum(StudentStatus)
+  @ApiProperty({ 
+    example: "60d0fe4f5311236168a109ca",
+    description: "The ID of the class the student is enrolled in",
+    required: true,
+    type: String
+  })
+  @IsString()
   @IsNotEmpty()
-  status: StudentStatus;
+  class: string
 
+  @ApiProperty({
+    type: 'array',
+    items: { type: 'string', format: 'binary' },
+    required: false,
+  })
+  @IsOptional()
+  profilePicture: any;
+
+  @ApiProperty({example: "example@email.com" })
+  @IsString()
+  @IsOptional()
+  email: string;
+  
 }
