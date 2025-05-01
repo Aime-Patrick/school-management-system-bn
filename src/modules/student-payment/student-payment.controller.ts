@@ -32,7 +32,7 @@ import { UserRole } from 'src/schemas/user.schema';
 export class StudentPaymentController {
   constructor(
     private readonly studentPaymentService: StudentPaymentService,
-    private hashService: HashService,
+    
   ) {}
 
   @Post('create')
@@ -47,20 +47,12 @@ export class StudentPaymentController {
     @UploadedFiles() files: Express.Multer.File[],
     @Req() req
   ) {
-    if (!files || files.length === 0) {
-      throw new BadRequestException('No files uploaded');
-    }
-
-    const uploadedFiles = await Promise.all(
-      files.map((file) => this.hashService.uploadFileToCloudinary(file)),
-    );
-
-    const urls = uploadedFiles.map((f) => f.url);
-    createStudentPaymentDto.proof = urls;
-    const school = req.user.schooldId;
+   
+    const school = req.user.schoolId;
     return this.studentPaymentService.createStudentPayment(
       createStudentPaymentDto,
-      school
+      school,
+      files,
     );
   }
 

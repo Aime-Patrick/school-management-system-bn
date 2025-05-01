@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsEnum, IsNumber, IsArray, IsDate, IsMongoId } from 'class-validator';
+import { IsNotEmpty, IsEnum, IsNumber, IsArray, IsDate, IsMongoId, IsOptional } from 'class-validator';
 import { paymentStatus, paymentMethod } from '../../../schemas/student-payment';
 import { Type } from 'class-transformer';
 
@@ -13,6 +13,7 @@ export class CreateStudentPaymentDto {
   @ApiProperty({ example: 50000, description: 'The amount of school fees' })
   @IsNumber()
   @IsNotEmpty()
+  @Type(() => Number)
   schoolFees: number;
 
   @ApiProperty({ example: 'unpaid', enum: paymentStatus, description: 'The payment status' })
@@ -25,9 +26,8 @@ export class CreateStudentPaymentDto {
     items: { type: 'string', format: 'binary' },
     description: 'Proof of payment (e.g., receipts)',
   })
-  @IsArray()
-  @IsNotEmpty()
-  proof: string[];
+  @IsOptional()
+  proof: any;
 
   @ApiProperty({ example: '2025-04-01', description: 'The date of payment' })
   @IsDate()
