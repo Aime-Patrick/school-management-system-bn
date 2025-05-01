@@ -174,7 +174,6 @@ export class StudentsService {
       .exec();
     }else{
       throw new BadRequestException('School not found');
-
     }
     return studentsService;
   }

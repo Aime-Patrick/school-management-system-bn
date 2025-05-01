@@ -21,6 +21,7 @@ import { PaymentModule } from './modules/payment/payment.module';
 import { SystemAdminModule } from './modules/system-admin/system-admin.module';
 import { PlanModule } from './modules/plan/plan.module';
 import { AcademicModule } from './modules/academic/academic.module';
+import { StudentPaymentModule } from './modules/student-payment/student-payment.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ load: [databaseConfig] }),
@@ -48,7 +49,8 @@ import { AcademicModule } from './modules/academic/academic.module';
     PaymentModule,
     SeedersModule,
     PlanModule,
-    AcademicModule
+    AcademicModule,
+    StudentPaymentModule
   ],
   controllers: [AppController],
   providers: [],

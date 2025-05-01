@@ -65,8 +65,11 @@ export class CoursesService {
 
   async getAllCourses(schoolAdmin: string): Promise<Course[]> {
     const school = await this.schoolModel.findOne({ schoolAdmin });
+    if (!school) {
+      throw new NotFoundException('School not found');
+    }
     return await this.courseModel
-      .find({ school })
+      .find({ school: school._id.toString() })
       .populate(['teacherIds', 'studentIds', 'school'])
       .exec();
   }
@@ -88,7 +91,7 @@ export class CoursesService {
   ): Promise<Course> {
     const course = await this.courseModel
       .findByIdAndUpdate(courseId, updatedCourse, { new: true })
-      .populate(['Teacher', 'Student'])
+      .populate(['teacherIds', 'studentIds'])
       .exec();
     if (!course) {
       throw new NotFoundException('Course not found');

@@ -22,26 +22,9 @@ export class CreateCourseDto {
   @IsNotEmpty()
   department: string;
 
-  @ApiProperty({ example: '2023-09-01T00:00:00.000Z' })
-  @IsDate()
-  @IsNotEmpty()
-  @Type(() => Date) 
-  startDate: Date;
-
-  @ApiProperty({ example: '2024-06-01T00:00:00.000Z' })
-  @IsDate()
-  @IsNotEmpty()
-  @Type(() => Date) 
-  endDate: Date;
-
   @ApiProperty({ example: 3 })
   @IsNumber()
   @IsNotEmpty()
   credits: number;
-
-  @ApiProperty({ example: 'active' })
-  @IsString()
-  @IsNotEmpty()
-  status: string;
 
 }
