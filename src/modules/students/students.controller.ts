@@ -16,7 +16,7 @@ import { HashService } from 'src/utils/utils.service';
 @UseGuards(JwtAuthGuard, RolesGuard,SubscriptionGuard)
 export class StudentsController {
     constructor(private readonly studentsService: StudentsService,
-                private hashService:HashService
+                
     ) {}
 
     @Post()
@@ -28,15 +28,10 @@ export class StudentsController {
     async createStudent(@Body() createStudentDto: CreateStudentDto, @Req() req,  @UploadedFile() file: Express.Multer.File,) {
         try {
             const schoolAdmin = req.user.id;
-            if (!file) {
-                throw new BadRequestException('No file received. Make sure you are uploading at least one file.');
-            }
-            const uploadedFile = await this.hashService.uploadFileToCloudinary(file);
-            createStudentDto.profilePicture = uploadedFile.url;
-            return await this.studentsService.createStudent(createStudentDto, schoolAdmin);
+           
+            return await this.studentsService.createStudent(createStudentDto, schoolAdmin, file);
         } catch (error) {
-            console.error('Error creating student:', error);
-            throw new Error('Failed to create student');
+            throw error;
         }
     }
 
@@ -48,6 +43,19 @@ export class StudentsController {
         try {
             const schoolAdmin = req.user.id;
             return await this.studentsService.findAllStudents(schoolAdmin);
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    @Get('student-credentials/')
+    @ApiBearerAuth()
+    @Roles(UserRole.SCHOOL_ADMIN, UserRole.TEACHER)
+    @ApiOperation({ summary: 'Get all students', description: 'Retrieve all students for the school.' })
+    async getAllStudentsCredentials(@Req() req) {
+        try {
+            const school = req.user.schoolId;
+            return await this.studentsService.getStudentsCredentials(school);
         } catch (error) {
             throw error;
         }
@@ -82,16 +90,15 @@ export class StudentsController {
         }
     }
 
-    @Delete(':regnNumber')
+    @Delete(':id')
     @ApiBearerAuth()
     @Roles(UserRole.SCHOOL_ADMIN)
     @ApiOperation({ summary: 'Delete student', description: 'Delete a student record by their registration number.' })
-    async deleteStudent(@Param('regNumber') regNumber: string, @Req() req) {
+    async deleteStudent(@Param('id') id: string, @Req() req) {
         try {
             const schoolAdmin = req.user.id;
-            return await this.studentsService.deleteStudent(regNumber, schoolAdmin);
+            return await this.studentsService.deleteStudent(id, schoolAdmin);
         } catch (error) {
-            console.error('Error deleting student:', error);
             throw error
         }
     }
@@ -120,6 +127,15 @@ export class StudentsController {
         } catch (error) {
             throw error
         }
+    }
+
+    @Post('reset-password/:registrationNumber')
+    @ApiBearerAuth()
+    @Roles(UserRole.SCHOOL_ADMIN, UserRole.TEACHER)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @ApiOperation({ summary: 'Reset student password', description: 'Reset the password for a student.' })
+    async resetPassword(@Param('registrationNumber') registrationNumber: string) {
+        return this.studentsService.resetStudentPassword(registrationNumber);
     }
 }
 
