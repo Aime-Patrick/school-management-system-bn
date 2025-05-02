@@ -1,11 +1,12 @@
-import { Controller, Post, Body, Req, UseGuards, Get, Param, Put, Delete } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { Controller, Post, Body, Req, UseGuards, Get, Param, Put, Delete, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { TeachersService } from './teachers.service';
 import { JwtAuthGuard } from 'src/guard/jwt-auth.guard';
 import { Roles } from 'src/decorator/roles.decorator';
 import { RolesGuard } from 'src/guard/roles.guard';
 import { CreateTeacherDto } from './dto/create-teacher.dto';
 import { UserRole } from 'src/schemas/user.schema';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('teachers')
 @Controller('teachers')
@@ -16,9 +17,11 @@ export class TeachersController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SCHOOL_ADMIN)
+  @ApiConsumes('multipart/form-data')
+      @UseInterceptors(FileInterceptor('profilePicture'))
   @ApiOperation({ summary: 'Add teacher to the school', description: 'Add a new teacher record.' })
-  async createTeacher(@Req() req, @Body() teacherDto: CreateTeacherDto) {
-    return this.teacherService.createTeacher(teacherDto, req.user.id);
+  async createTeacher(@Req() req, @Body() teacherDto: CreateTeacherDto, @UploadedFile() file: Express.Multer.File) {
+    return this.teacherService.createTeacher(teacherDto, req.user.id, file);
   }
 
   @Get('school/:schoolId')

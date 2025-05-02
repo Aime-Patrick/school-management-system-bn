@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Class } from '../../schemas/class.schema';
@@ -38,7 +38,12 @@ export class ClassService {
     return this.classModel
       .find(filters)
       .populate('assignedTeachers')
-      .populate('students');
+      .populate('students')
+      .populate({
+        path: 'timetable.schedule.teacher', 
+        select: 'firstName lastName email',
+      })
+      .exec();
   }
 
   // Get class details
@@ -47,6 +52,10 @@ export class ClassService {
       .findById(classId)
       .populate('assignedTeachers')
       .populate('students')
+      .populate({
+        path: 'timetable.schedule.teacher',
+        select: 'firstName lastName email',
+      })
       .exec();
 
     if (!classDetails) {
@@ -89,43 +98,113 @@ export class ClassService {
     classId: string,
     updateClassDto: UpdateClassDto,
   ): Promise<Class> {
-    // Fetch the class details
     const classDetails = await this.getClassById(classId);
   
     if (!classDetails) {
       throw new NotFoundException(`Class with ID ${classId} not found`);
     }
   
-    // Update class details only if provided in the DTO
+    // Update class name if provided
     if (updateClassDto.name) {
       classDetails.name = updateClassDto.name;
     }
   
-    if (classDetails.grade) {
-      classDetails.grade = classDetails.grade;
-    }
-  
-    if (updateClassDto.timetable) {
-      classDetails.timetable = updateClassDto.timetable.map((timetable) => ({
-        day: timetable.day,
-        schedule: timetable.schedule.map((schedule) => ({
-          subject: schedule.subject,
-          teacher: new Types.ObjectId(schedule.teacher),
-          startTime: schedule.startTime,
-          endTime: schedule.endTime,
-        })),
-      }));
-    }
-  
-    if (updateClassDto.assignedTeachers) {
-      classDetails.assignedTeachers = updateClassDto.assignedTeachers.map(
-        (teacher) => new Types.ObjectId(teacher.teacherId),
+    // Remove full days from the timetable
+    if (updateClassDto.removeDays?.length) {
+      classDetails.timetable = classDetails.timetable.filter(
+        (t) => !(updateClassDto.removeDays ?? []).includes(t.day),
       );
     }
-
+  
+    // Remove specific schedule entries
+    if (updateClassDto.removeSchedules?.length) {
+      updateClassDto.removeSchedules.forEach((removeItem) => {
+        const dayToEdit = classDetails.timetable.find(
+          (t) => t.day === removeItem.day,
+        );
+        if (dayToEdit) {
+          dayToEdit.schedule = dayToEdit.schedule.filter(
+            (s) =>
+              !(
+                s.subject === removeItem.subject &&
+                s.teacher.toString() === removeItem.teacherId &&
+                s.startTime === removeItem.startTime &&
+                s.endTime === removeItem.endTime
+              ),
+          );
+        }
+      });
+    }
+  
+    // Add or update schedules
+    if (updateClassDto.timetable?.length) {
+      updateClassDto.timetable.forEach((newTimetable) => {
+        // Check if day exists
+        let existingDay = classDetails.timetable.find(
+          (t) => t.day === newTimetable.day,
+        );
+  
+        // If day exists, clear all existing schedules (as per your new request)
+        if (existingDay) {
+          existingDay.schedule = [];
+  
+          newTimetable.schedule.forEach((newSchedule) => {
+            const teacherId =
+              typeof newSchedule.teacher === 'object'
+                ? (newSchedule.teacher as { _id: string })._id
+                : newSchedule.teacher;
+  
+            if (!Types.ObjectId.isValid(teacherId)) {
+              throw new BadRequestException(`Invalid teacher ID: ${teacherId}`);
+            }
+  
+            existingDay.schedule.push({
+              subject: newSchedule.subject,
+              teacher: new Types.ObjectId(teacherId),
+              startTime: newSchedule.startTime,
+              endTime: newSchedule.endTime,
+            });
+          });
+        } else {
+          // New day, add it
+          classDetails.timetable.push({
+            day: newTimetable.day,
+            schedule: newTimetable.schedule.map((newSchedule) => {
+              const teacherId =
+                typeof newSchedule.teacher === 'object'
+                  ? (newSchedule.teacher as { _id: string })._id
+                  : newSchedule.teacher;
+  
+              if (!Types.ObjectId.isValid(teacherId)) {
+                throw new BadRequestException(`Invalid teacher ID: ${teacherId}`);
+              }
+  
+              return {
+                subject: newSchedule.subject,
+                teacher: new Types.ObjectId(teacherId),
+                startTime: newSchedule.startTime,
+                endTime: newSchedule.endTime,
+              };
+            }),
+          });
+        }
+      });
+    }
+  
+    // Update assigned teachers
+    if (updateClassDto.assignedTeachers) {
+      classDetails.assignedTeachers = updateClassDto.assignedTeachers.map(
+        (teacher) => {
+          if (!Types.ObjectId.isValid(teacher.teacherId)) {
+            throw new BadRequestException(`Invalid teacher ID: ${teacher.teacherId}`);
+          }
+          return new Types.ObjectId(teacher.teacherId);
+        },
+      );
+    }
+  
     return await classDetails.save();
   }
-
 
   private generateGrade(percentage: number): string {
     if (percentage >= 90) return 'Grade A';

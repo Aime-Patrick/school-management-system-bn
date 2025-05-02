@@ -17,6 +17,7 @@ import { Course } from 'src/schemas/course.schema';
 import { Teacher } from 'src/schemas/teacher.schema';
 import { Class } from 'src/schemas/class.schema';
 import { StudentCredentials } from 'src/schemas/student-credentials.schema';
+import { StudentPayment } from 'src/schemas/student-payment';
 @Injectable()
 export class StudentsService {
   constructor(
@@ -26,8 +27,8 @@ export class StudentsService {
     @InjectModel(Course.name) private courseModel: Model<Course>,
     @InjectModel(Teacher.name) private teacherModel: Model<Teacher>,
     @InjectModel(Class.name) private classModel: Model<Class>,
-    @InjectModel(StudentCredentials.name)
-    private studentCredentialsModel: Model<StudentCredentials>,
+    @InjectModel(StudentCredentials.name) private studentCredentialsModel: Model<StudentCredentials>,
+    @InjectModel(StudentPayment.name) private studentPaymentModel: Model<StudentPayment>,
     private hashUtils: HashService,
   ) {}
 
@@ -280,6 +281,28 @@ export class StudentsService {
     await this.studentCredentialsModel
       .findOneAndDelete({ student: deletedStudent._id })
       .exec();
+
+    await this.userModel
+      .findOneAndDelete({ _id: deletedStudent.accountCredentails })
+      .exec();
+    await this.classModel
+      .findOneAndUpdate(
+        { _id: deletedStudent.class },
+        { $pull: { students: deletedStudent._id } },
+        { new: true },
+      )
+      .exec();
+    await this.courseModel
+      .updateMany(
+        { studentIds: deletedStudent._id },
+        { $pull: { studentIds: deletedStudent._id } },
+        { new: true },
+      )
+      .exec();
+
+    await this.studentPaymentModel
+      .deleteMany({ student: deletedStudent._id })
+      .exec();
   
     return true;
    } catch (error) {
@@ -390,15 +413,19 @@ export class StudentsService {
   ): Promise<{ message: string; newPassword: string }> {
     const credentials = await this.studentCredentialsModel.findOne({
       registrationNumber,
-    });
+    }).populate<{ student: Student }>('student');
     if (!credentials) {
       throw new NotFoundException('Student credentials not found');
     }
 
-    const newPassword = this.hashUtils.generatePassword(credentials.username);
+    const newPassword = this.hashUtils.generatePassword((credentials.student as Student).firstName);
     const hashedPassword = await this.hashUtils.hashPassword(newPassword);
 
     credentials.password = hashedPassword;
+    await this.userModel.findOneAndUpdate(
+      { _id: credentials.student.accountCredentails },
+      { password: hashedPassword },
+    );
     await credentials.save();
 
     return { message: 'Password reset successfully', newPassword };
@@ -415,5 +442,21 @@ export class StudentsService {
       .exec();
 
     return credentials.filter((credential) => credential.student !== null);
+  }
+
+  async getStudentById(id: string, schoolId: string): Promise<Student | null> {
+   try {
+    return await this.studentModel
+      .findOne({
+        'accountCredentails._id': new mongoose.Types.ObjectId(id),
+        school: new mongoose.Types.ObjectId(schoolId),
+      })
+      .populate('class')
+      .populate('school')
+      .populate('accountCredentails', 'email username')
+      .exec();
+   } catch (error) {
+    throw new NotFoundException('Student not found');
+   }
   }
 }

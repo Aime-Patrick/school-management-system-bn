@@ -27,6 +27,7 @@ export class TeachersService {
   async createTeacher(
     createTeacherDto: CreateTeacherDto,
     schoolAdmin: string,
+    file: Express.Multer.File,
   ): Promise<{ newTeacher: Teacher; teacherPassword: string }> {
     try {
       const school = await this.schoolModel.findOne({ schoolAdmin }).exec();
@@ -61,6 +62,10 @@ export class TeachersService {
         role: UserRole.TEACHER,
       });
       await user.save();
+      if (file){
+        const uploadedFile = await this.hashUtils.uploadFileToCloudinary(file);
+        createTeacherDto.profilePicture = uploadedFile.url;
+      }
   
       const createdTeacher = new this.teacherModel({
         ...createTeacherDto,
@@ -128,6 +133,7 @@ export class TeachersService {
         .find({ school: schoolId })
         .populate('school')
         .populate('accountCredentails')
+        .populate("coursesTaught")
         .exec();
 
       return teachers;

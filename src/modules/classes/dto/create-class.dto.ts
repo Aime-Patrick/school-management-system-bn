@@ -48,4 +48,33 @@ export class CreateClassDto {
   @IsOptional()
   students: string[];
 
+  @ApiProperty({
+    example: ['60d0fe4f5311236168a109ce', '60d0fe4f5311236168a109cf'],
+    description: 'The list of course IDs associated with the class',
+    required: false,
+    type: [String],
+  })
+  @IsArray()
+  @IsOptional()
+  removeDays?: string[];
+
+  @ApiProperty({
+    example: [
+      { day: 'Monday', subject: 'Math', teacherId: '60d0fe4f5311236168a109ca', startTime: '10:00 AM', endTime: '11:00 AM' },
+      { day: 'Tuesday', subject: 'Science', teacherId: '60d0fe4f5311236168a109cb', startTime: '11:00 AM', endTime: '12:00 PM' },
+    ],
+    description: 'The list of schedules to be removed from the class',
+    required: false,
+    type: [String],
+  })
+  @IsArray()
+  @IsOptional()
+  removeSchedules?: {
+    day: string;
+    subject: string;
+    teacherId: string;
+    startTime: string;
+    endTime: string;
+  }[];
+
 }

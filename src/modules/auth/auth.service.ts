@@ -55,10 +55,10 @@ export class AuthService {
   
       // Inject schoolId based on role
       if (user.role === UserRole.TEACHER) {
-        const teacher = await this.teacherModel.findOne({ accountCredentials: user._id.toString() });
+        const teacher = await this.teacherModel.findOne({ 'accountCredentials._id': user._id });
         if (teacher) payload.schoolId = teacher.school.toString();
       } else if (user.role === UserRole.STUDENT) {
-        const student = await this.studentModel.findOne({ accountCredentials: user._id.toString() });
+        const student = await this.studentModel.findOne({ 'accountCredentails._id': user._id });
         if (student) payload.schoolId = student.school.toString();
       } else if (user.role === UserRole.SCHOOL_ADMIN) {
         const admin = await this.schoolModel.findOne({ schoolAdmin: user._id.toString() });

@@ -42,25 +42,44 @@ export class CoursesService {
   async assignTeacherToCourse(
     courseId: string,
     assignTeacherDto: AssignTeacherDto,
-  ) {
+  ): Promise<Course> {
+    console.log('Assigning teacher to course:', courseId, assignTeacherDto);
+
+    // Validate course existence
     const course = await this.courseModel.findById(courseId).exec();
     if (!course) throw new NotFoundException('Course not found');
 
-    const updatedTeacherIds = Array.from(
-      new Set([...course.teacherIds, ...assignTeacherDto.teachers]),
-    );
+    // Validate teacher IDs
+    const validTeacherIds = assignTeacherDto.teachers.filter((teacherId) => {
+      console.log('Validating teacher ID:', teacherId);
+      if (!Types.ObjectId.isValid(teacherId)) {
+        throw new BadRequestException(`Invalid teacher ID: ${teacherId}`);
+      }
+      return true;
+    });
 
-    await this.courseModel.findByIdAndUpdate(
+    // Merge and deduplicate teacher IDs
+    const updatedTeacherIds = Array.from(
+      new Set([...course.teacherIds.map((id) => id.toString()), ...validTeacherIds]),
+    ).map((id) => new Types.ObjectId(id));
+
+    // Update the course with the new teacher IDs
+    const updatedCourse = await this.courseModel.findByIdAndUpdate(
       courseId,
       { teacherIds: updatedTeacherIds },
       { new: true },
     );
 
+    // Update the teachers' coursesTaught field
     await this.teacherModel.updateMany(
-      { _id: { $in: assignTeacherDto.teachers } },
+      { _id: { $in: validTeacherIds } },
       { $addToSet: { coursesTaught: courseId } },
     );
-    return course;
+
+    if (!updatedCourse) {
+      throw new NotFoundException('Course not found');
+    }
+    return updatedCourse;
   }
 
   async getAllCourses(schoolAdmin: string): Promise<Course[]> {
@@ -77,7 +96,7 @@ export class CoursesService {
   async getCourseById(courseId: string): Promise<Course> {
     const course = await this.courseModel
       .findById(courseId)
-      .populate(['Teacher', 'Student'])
+      .populate(['teacherIds', 'studentIds'])
       .exec();
     if (!course) {
       throw new NotFoundException('Course not found');

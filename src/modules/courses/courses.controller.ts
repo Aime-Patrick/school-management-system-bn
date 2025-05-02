@@ -53,8 +53,8 @@ export class CoursesController {
 
     async assignTeacherToCourse(@Body() assignTeacherDto: AssignTeacherDto, @Req() req , @Param('courseId') courseId:string): Promise<{}> {
         try {
-            const assignedTeacher = await this.coursesService.assignTeacherToCourse(courseId, assignTeacherDto);
-            return { message : "Teacher assigned success",assignedTeacher};
+            const assignedCourse = await this.coursesService.assignTeacherToCourse(courseId, assignTeacherDto);
+            return { message : "Teacher assigned success",assignedCourse};
         } catch (error) {
             console.error('Error assigning teacher to course:', error);
             throw error;

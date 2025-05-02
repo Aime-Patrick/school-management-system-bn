@@ -52,7 +52,7 @@ export class Teacher {
     school: School;
 
     @Prop({required:false})
-    profileImage: string
+    profilePicture: string
 }
 
 export const TeacherSchema = SchemaFactory.createForClass(Teacher);

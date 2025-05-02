@@ -11,6 +11,7 @@ import { CourseSchema, Course } from 'src/schemas/course.schema';
 import { Teacher, TeacherSchema } from 'src/schemas/teacher.schema';
 import { Class, ClassSchema } from 'src/schemas/class.schema';
 import { HashService } from 'src/utils/utils.service';
+import { StudentPayment, StudentPaymentSchema } from 'src/schemas/student-payment';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { HashService } from 'src/utils/utils.service';
       { name: Course.name, schema: CourseSchema },
       { name: Teacher.name, schema: TeacherSchema },
       { name: Class.name, schema: ClassSchema },
+      { name: StudentPayment.name, schema: StudentPaymentSchema },
     ]),
   ],
   controllers: [StudentsController],

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsEmail, IsDate, IsEnum, IsMongoId } from 'class-validator';
+import { IsString, IsNotEmpty, IsEmail, IsDate, IsEnum, IsMongoId, IsOptional } from 'class-validator';
 import { TeacherStatus, TeacherGender } from '../../../schemas/teacher.schema';
 import { Type } from 'class-transformer';
 
@@ -60,5 +60,13 @@ export class CreateTeacherDto {
   @IsEnum(TeacherGender)
   @IsNotEmpty()
   gender: TeacherGender;
+
+    @ApiProperty({
+      type: 'array',
+      items: { type: 'string', format: 'binary' },
+      required: false,
+    })
+    @IsOptional()
+    profilePicture: any;
 
 }

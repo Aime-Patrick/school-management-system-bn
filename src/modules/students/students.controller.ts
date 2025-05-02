@@ -1,6 +1,6 @@
 import { Body, Controller, Post, Get, Put, Delete, Param, Req, UseGuards, UseInterceptors, UploadedFiles, BadRequestException, UploadedFile } from '@nestjs/common';
 import { StudentsService } from './students.service';
-import { ApiBearerAuth, ApiTags, ApiOperation, ApiConsumes } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiConsumes, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/guard/jwt-auth.guard';
 import { RolesGuard } from 'src/guard/roles.guard';
 import { Roles } from 'src/decorator/roles.decorator';
@@ -70,6 +70,27 @@ export class StudentsController {
         try {
             const schoolAdmin = req.user.id;
             return await this.studentsService.findStudentByRegistrationNumber(regNumber, schoolAdmin);
+        } catch (error) {
+            console.error('Error fetching student:', error);
+            throw error
+        }
+    }
+
+    @Get('logged-student/:id')
+    @ApiBearerAuth()
+    @Roles(UserRole.SCHOOL_ADMIN, UserRole.TEACHER, UserRole.STUDENT)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @ApiOperation({ summary: 'Get student by ID', description: 'Retrieve a student by their ID.' })
+    @ApiResponse({ status: 200, description: 'Student found successfully' })
+    @ApiResponse({ status: 404, description: 'Student not found' })
+    @ApiResponse({ status: 500, description: 'Internal server error' })
+    @ApiResponse({ status: 403, description: 'Forbidden' })
+    @ApiResponse({ status: 401, description: 'Unauthorized' })
+    @ApiResponse({ status: 400, description: 'Bad request' })
+    async findStudentById(@Param('id') id: string, @Req() req) {
+        try {
+            const school = req.user.schoolId;
+            return await this.studentsService.getStudentById(id, school);
         } catch (error) {
             console.error('Error fetching student:', error);
             throw error
