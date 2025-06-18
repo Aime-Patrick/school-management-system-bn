@@ -16,8 +16,10 @@ import { Roles } from 'src/decorator/roles.decorator';
 import { RolesGuard } from 'src/guard/roles.guard';
 import { UserRole } from 'src/schemas/user.schema';
 import { ClassService } from './classes.service';
-import { CreateClassDto } from './dto/create-class.dto';
+import { CreateCombinationDto } from './dto/create-class-combination.dto';
 import { UpdateClassDto } from './dto/update-class.dto';
+import { StudentIdsDto } from './dto/student-ids.dto';
+import { CreateClassDto } from './dto/create-class.dto';
 
 @ApiTags('classes')
 @Controller('classes')
@@ -30,13 +32,9 @@ export class ClassesController {
   @Roles(UserRole.SCHOOL_ADMIN)
   @ApiOperation({ summary: 'Create a new class', description: 'Create a new class record.' })
   async createClass(@Body() createClassDto: CreateClassDto, @Req() req) {
-    try {
-        const userId= req.user.id
-        return this.classService.create(createClassDto, userId);
-      } catch (error) {
-        throw error;
-    }
-}
+    const schoolId = req.user.schoolId;
+    return this.classService.createClass(createClassDto, schoolId);
+  }
 
   @Get()
   @ApiBearerAuth()
@@ -64,7 +62,7 @@ export class ClassesController {
   @Get(':classId')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SCHOOL_ADMIN, UserRole.TEACHER)
+  @Roles(UserRole.SCHOOL_ADMIN, UserRole.TEACHER, UserRole.STUDENT)
   @ApiOperation({
     summary: 'Get class details',
     description: 'Retrieve details of a specific class by its ID.',
@@ -111,24 +109,18 @@ export class ClassesController {
         studentIds: {
           type: 'array',
           items: { type: 'string' },
-          example:{
-            studentIds: ['student1', 'student2'],
-          }
+          example: ['student1', 'student2'],
         },
       },
     },
   })
   async addStudentsToClass(
     @Param('classId') classId: string,
-    @Body('studentIds') studentIds: string[],
-    @Req() req
-  ) {
-    try {
-        const userId = req.user.id;
-    return this.classService.addStudentsToClass(classId, studentIds, userId);
-    } catch (error) {
-        throw error;
-    }
+    @Body() dto: StudentIdsDto,
+    @Req() req,
+  ): Promise<any> {
+    const userId = req.user.id;
+    return this.classService.addStudentsToClass(classId, dto.studentIds, userId);
   }
 
   @Delete(':classId/students')
@@ -139,15 +131,23 @@ export class ClassesController {
     summary: 'Remove students from a class',
     description: 'Remove students from a specific class by their IDs.',
   })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        studentIds: {
+          type: 'array',
+          items: { type: 'string' },
+          example: ['student1', 'student2'],
+        },
+      },
+    },
+  })
   async removeStudentsFromClass(
     @Param('classId') classId: string,
-    @Body('studentIds') studentIds: string[],
-  ) {
-    try {
-      return this.classService.removeStudentsFromClass(classId, studentIds);
-    } catch (error) {
-      throw error;
-    }
+    @Body() dto: StudentIdsDto,
+  ): Promise<any> {
+    return this.classService.removeStudentsFromClass(classId, dto.studentIds);
   }
 
   @Get(':classId/performance')

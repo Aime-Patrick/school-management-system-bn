@@ -5,13 +5,13 @@ import { Result } from '../../schemas/result.schema';
 import { CreateResultDto } from './dto/create-result.dto';
 import { UpdateResultDto } from './dto/update-result.dto';
 import { Student } from 'src/schemas/student.schema';
-import { Class } from 'src/schemas/class.schema';
+import { ClassCombination } from 'src/schemas/ClassCombination.schema';
 
 @Injectable()
 export class ResultService {
   constructor(@InjectModel(Result.name) private readonly resultModel: Model<Result>,
   @InjectModel(Student.name) private readonly studentModel: Model<Student>,
-  @InjectModel(Class.name) private readonly classModel: Model<Class>,
+  @InjectModel(ClassCombination.name) private readonly classModel: Model<ClassCombination>,
 ) {}
 
   // Create a new result

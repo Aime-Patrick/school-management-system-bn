@@ -15,9 +15,10 @@ import { UserRole } from 'src/schemas/user.schema';
 import { StudentEnrollIntoCourseDto } from './dto/student-enroll-course.dto';
 import { Course } from 'src/schemas/course.schema';
 import { Teacher } from 'src/schemas/teacher.schema';
-import { Class } from 'src/schemas/class.schema';
+import { ClassCombination } from 'src/schemas/ClassCombination.schema';
 import { StudentCredentials } from 'src/schemas/student-credentials.schema';
 import { StudentPayment } from 'src/schemas/student-payment';
+import { Class } from 'src/schemas/class.schema';
 @Injectable()
 export class StudentsService {
   constructor(
@@ -26,6 +27,7 @@ export class StudentsService {
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Course.name) private courseModel: Model<Course>,
     @InjectModel(Teacher.name) private teacherModel: Model<Teacher>,
+    @InjectModel(ClassCombination.name) private classCombinationModel: Model<ClassCombination>,
     @InjectModel(Class.name) private classModel: Model<Class>,
     @InjectModel(StudentCredentials.name) private studentCredentialsModel: Model<StudentCredentials>,
     @InjectModel(StudentPayment.name) private studentPaymentModel: Model<StudentPayment>,
@@ -42,6 +44,7 @@ export class StudentsService {
     studentPassword: string;
   }> {
     try {
+      // Validate the school admin
       const schoolAdmin = await this.schoolModel.findOne({
         schoolAdmin: adminId,
       });
@@ -49,6 +52,7 @@ export class StudentsService {
         throw new UnauthorizedException('School Admin not found');
       }
 
+      // Check for existing student or user with the same phone number
       const existingStudent = await this.studentModel.findOne({
         phoneNumber: createStudentDto.phoneNumber,
       });
@@ -56,22 +60,27 @@ export class StudentsService {
         phoneNumber: createStudentDto.phoneNumber,
       });
 
-      const existingClass = await this.classModel.findById(
-        createStudentDto.class,
-      );
-      if (!existingClass) {
-        throw new BadRequestException('Class not found');
-      }
-      if (!existingClass.school.equals(schoolAdmin._id)) {
-        throw new BadRequestException(
-          'Class does not belong to the same school as the student',
-        );
-      }
-
       if (existingStudent || existingUser) {
         throw new BadRequestException('Phone number already exists');
       }
 
+      // Validate the ClassCombination
+      const existingCombination = await this.classCombinationModel.findById(
+        createStudentDto.classCombination,
+      );
+      if (!existingCombination) {
+        throw new BadRequestException('ClassCombination not found');
+      }
+
+      // Ensure the ClassCombination belongs to the same school
+      const parentClass = await this.classModel.findById(existingCombination.parentClass);
+      if (!parentClass || !parentClass.school.equals(schoolAdmin._id)) {
+        throw new BadRequestException(
+          'ClassCombination does not belong to the same school as the student',
+        );
+      }
+
+      // Generate a unique registration number
       const schoolId = schoolAdmin._id;
       const currentYear = new Date().getFullYear();
       const studentCount = await this.studentModel.countDocuments({
@@ -83,6 +92,7 @@ export class StudentsService {
         studentCount,
       );
 
+      // Handle profile picture upload
       if (!file) {
         throw new BadRequestException(
           'No file received. Make sure you are uploading at least one file.',
@@ -91,17 +101,21 @@ export class StudentsService {
       const uploadedFile = await this.hashUtils.uploadFileToCloudinary(file);
       createStudentDto.profilePicture = uploadedFile.url;
 
+      // Create the student
       const newStudent = new this.studentModel({
         ...createStudentDto,
         school: schoolId,
         registrationNumber,
+        classCombination: createStudentDto.classCombination,
       });
 
       await newStudent.save();
 
       // Generate credentials
-      const { password } =
-        await this.createStudentCredentials(newStudent, createStudentDto.email);
+      const { password } = await this.createStudentCredentials(
+        newStudent,
+        createStudentDto.email,
+      );
       const hashedPassword = await this.hashUtils.hashPassword(password);
 
       const credentials = new this.studentCredentialsModel({
@@ -111,12 +125,13 @@ export class StudentsService {
         ),
         password: hashedPassword,
         registrationNumber,
-        class: createStudentDto.class,
+        classCombination: createStudentDto.classCombination,
         student: newStudent._id,
       });
 
-      existingClass.students.push(newStudent._id);
-      await existingClass.save();
+      // Add the student to the ClassCombination
+      existingCombination.students.push(newStudent._id);
+      await existingCombination.save();
 
       await credentials.save();
 

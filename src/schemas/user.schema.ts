@@ -32,6 +32,12 @@ export class User {
     role: string;
   @Prop({required: false})
   profileImage: string;
+
+  @Prop({ required: false, type: String })
+  resetPasswordToken: string;
+
+  @Prop({ required: false, type: Date })
+  resetPasswordExpires: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

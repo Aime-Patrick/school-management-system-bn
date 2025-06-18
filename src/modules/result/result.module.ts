@@ -4,11 +4,11 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ResultService } from './result.service';
 import { ResultController } from './result.controller';
 import { Student, StudentSchema } from 'src/schemas/student.schema';
-import { Class, ClassSchema } from 'src/schemas/class.schema';
+import { ClassCombination, ClassCombinationSchema } from 'src/schemas/ClassCombination.schema';
 @Module({
     imports: [MongooseModule.forFeature([{ name: Result.name, schema: ResultSchema },
         { name: Student.name, schema: StudentSchema },
-        { name: Class.name, schema: ClassSchema },
+        { name: ClassCombination.name, schema: ClassCombinationSchema },
     ])],
     controllers: [ResultController],
     providers: [ResultService],

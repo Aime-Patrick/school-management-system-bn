@@ -40,6 +40,11 @@ export class CreateStudentDto {
   @IsNotEmpty()
   city: string;
 
+  @ApiProperty({ example: '60d0fe4f5311236168a109cc', description: 'The ID of the ClassCombination' })
+  @IsMongoId()
+  @IsNotEmpty()
+  classCombination: string;
+
   @ApiProperty({ example: '2022-09-01' })
   @IsDate()
   @IsNotEmpty()

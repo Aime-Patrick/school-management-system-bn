@@ -7,9 +7,10 @@ import { Student, StudentSchema } from 'src/schemas/student.schema';
 import { StudentCredentials, StudentCredentialsSchema } from 'src/schemas/student-credentials.schema';
 import { School, SchoolSchema } from 'src/schemas/school.schema';
 import { User, UserSchema } from 'src/schemas/user.schema';
-import { CourseSchema, Course } from 'src/schemas/course.schema';
+import { Course, CourseSchema } from 'src/schemas/course.schema';
 import { Teacher, TeacherSchema } from 'src/schemas/teacher.schema';
-import { Class, ClassSchema } from 'src/schemas/class.schema';
+import { ClassCombination, ClassCombinationSchema } from 'src/schemas/ClassCombination.schema';
+import { Class, ClassSchema } from 'src/schemas/class.schema'; // Import Class schema
 import { HashService } from 'src/utils/utils.service';
 import { StudentPayment, StudentPaymentSchema } from 'src/schemas/student-payment';
 
@@ -23,6 +24,7 @@ import { StudentPayment, StudentPaymentSchema } from 'src/schemas/student-paymen
       { name: User.name, schema: UserSchema },
       { name: Course.name, schema: CourseSchema },
       { name: Teacher.name, schema: TeacherSchema },
+      { name: ClassCombination.name, schema: ClassCombinationSchema },
       { name: Class.name, schema: ClassSchema },
       { name: StudentPayment.name, schema: StudentPaymentSchema },
     ]),

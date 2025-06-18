@@ -12,6 +12,7 @@ import { JwtAuthGuard } from 'src/guard/jwt-auth.guard';
 import { Teacher, TeacherSchema} from 'src/schemas/teacher.schema';
 import { Student, StudentSchema } from 'src/schemas/student.schema';
 import { School, SchoolSchema } from 'src/schemas/school.schema';
+import { MailModule } from '../mail/mail.module';
 @Module({
   imports: [
     ConfigModule,
@@ -29,6 +30,7 @@ import { School, SchoolSchema } from 'src/schemas/school.schema';
     MongooseModule.forFeature([{ name: Student.name, schema: StudentSchema }]),
     MongooseModule.forFeature([{ name: School.name, schema: SchoolSchema }]),
     UtilsModule,
+    MailModule,
   ],
   providers: [AuthService, JwtStrategy, JwtAuthGuard],
   controllers: [AuthController],
