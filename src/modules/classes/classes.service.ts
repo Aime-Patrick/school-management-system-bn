@@ -13,6 +13,7 @@ import { Result } from 'src/schemas/result.schema';
 import { ResultService } from '../result/result.service';
 import { Class } from 'src/schemas/class.schema';
 import { CreateClassDto } from './dto/create-class.dto';
+import { TimetableDto } from './dto/timetable.dto';
 @Injectable()
 export class ClassService {
   constructor(
@@ -36,6 +37,12 @@ export class ClassService {
   }
 
   async createClass(createClassDto: CreateClassDto, schoolId: string): Promise<Class> {
+    // Check for duplicate class name in the same school
+    const existing = await this.classModel.findOne({ name: createClassDto.name, school: schoolId });
+    if (existing) {
+      throw new BadRequestException('A class with this name already exists in this school.');
+    }
+
     const createdClass = new this.classModel({
       name: createClassDto.name,
       combinations: [],
@@ -65,6 +72,16 @@ export class ClassService {
       .exec();
   }
 
+  async getAllClassesInSchool(schoolId: string): Promise<Class[]> {
+    if (!Types.ObjectId.isValid(schoolId)) {
+      throw new BadRequestException('Invalid school ID');
+    }
+    return this.classModel
+      .find({ school: schoolId })
+      .populate('combinations')
+      .exec();
+  }
+
   // Get class details
   async getClassById(classId: string): Promise<ClassCombination> {
     if (!Types.ObjectId.isValid(classId)) {
@@ -87,22 +104,6 @@ export class ClassService {
     return classDetails;
   }
 
-  // Add students to class
-  async addStudentsToClass(
-    classId: string,
-    studentIds: string[],
-    userId: string,
-  ): Promise<ClassCombination> {
-    const classDetails = await this.getClassById(classId);
-    const existingIds = new Set(classDetails.students.map(id => id.toString()));
-    const newIds = studentIds
-      .map(id => new Types.ObjectId(id))
-      .filter(id => !existingIds.has(id.toString()));
-
-    classDetails.students.push(...newIds);
-    await classDetails.save();
-    return classDetails;
-  }
 
   // Remove students from class
   async removeStudentsFromClass(
@@ -119,138 +120,6 @@ export class ClassService {
     return classDetails;
   }
 
-  // Update class details
-  async updateClass(
-    classId: string,
-    updateClassDto: UpdateClassDto,
-  ): Promise<ClassCombination> {
-    const classDetails = await this.getClassById(classId);
-
-    if (!classDetails) {
-      throw new NotFoundException(`Class with ID ${classId} not found`);
-    }
-
-    // Update class name if provided
-    if (updateClassDto.name) {
-      classDetails.name = updateClassDto.name;
-    }
-
-    // Remove full days from the timetable
-    if (updateClassDto.removeDays?.length) {
-      classDetails.timetable = classDetails.timetable.filter(
-        (t) => !(updateClassDto.removeDays ?? []).includes(t.day),
-      );
-    }
-
-    // Remove specific schedule entries
-    if (updateClassDto.removeSchedules?.length) {
-      updateClassDto.removeSchedules.forEach((removeItem) => {
-        const dayToEdit = classDetails.timetable.find(
-          (t) => t.day === removeItem.day,
-        );
-        if (dayToEdit) {
-          dayToEdit.schedule = dayToEdit.schedule.filter(
-            (s) =>
-              !(
-                s.subject === removeItem.subject &&
-                s.teacher.toString() === removeItem.teacherId &&
-                s.startTime === removeItem.startTime &&
-                s.endTime === removeItem.endTime
-              ),
-          );
-        }
-      });
-    }
-
-    // Add or update schedules
-    if (updateClassDto.timetable?.length) {
-      updateClassDto.timetable.forEach((newTimetable) => {
-        // Check if day exists
-        let existingDay = classDetails.timetable.find(
-          (t) => t.day === newTimetable.day,
-        );
-
-        // If day exists, clear all existing schedules (as per your new request)
-        if (existingDay) {
-          // Merge schedules, prevent duplicates
-          const existingSchedules = existingDay.schedule.map(s => ({
-            subject: s.subject,
-            teacher: s.teacher.toString(),
-            startTime: s.startTime,
-            endTime: s.endTime,
-          }));
-
-          newTimetable.schedule.forEach((newSchedule) => {
-            const teacherId = typeof newSchedule.teacher === 'object'
-              ? (typeof newSchedule.teacher === 'object' && newSchedule.teacher !== null && '_id' in newSchedule.teacher
-                  ? (newSchedule.teacher as { _id: string })._id
-                  : newSchedule.teacher)
-              : newSchedule.teacher;
-
-            if (!Types.ObjectId.isValid(teacherId)) {
-              throw new BadRequestException(`Invalid teacher ID: ${teacherId}`);
-            }
-
-            const isDuplicate = existingSchedules.some(s =>
-              s.subject === newSchedule.subject &&
-              s.teacher === teacherId &&
-              s.startTime === newSchedule.startTime &&
-              s.endTime === newSchedule.endTime
-            );
-
-            if (!isDuplicate) {
-              existingDay.schedule.push({
-                subject: newSchedule.subject,
-                teacher: new Types.ObjectId(teacherId),
-                startTime: newSchedule.startTime,
-                endTime: newSchedule.endTime,
-              });
-            }
-          });
-        } else {
-          // New day, add it
-          classDetails.timetable.push({
-            day: newTimetable.day,
-            schedule: newTimetable.schedule.map((newSchedule) => {
-              const teacherId =
-                typeof newSchedule.teacher === 'object' && newSchedule.teacher !== null && '_id' in newSchedule.teacher
-                  ? (newSchedule.teacher as { _id: string })._id
-                  : newSchedule.teacher;
-
-              if (!Types.ObjectId.isValid(teacherId)) {
-                throw new BadRequestException(
-                  `Invalid teacher ID: ${teacherId}`,
-                );
-              }
-
-              return {
-                subject: newSchedule.subject,
-                teacher: new Types.ObjectId(teacherId),
-                startTime: newSchedule.startTime,
-                endTime: newSchedule.endTime,
-              };
-            }),
-          });
-        }
-      });
-    }
-
-    // Update assigned teachers
-    if (updateClassDto.assignedTeachers) {
-      classDetails.assignedTeachers = updateClassDto.assignedTeachers.map(
-        (teacher) => {
-          if (!Types.ObjectId.isValid(teacher.teacherId)) {
-            throw new BadRequestException(
-              `Invalid teacher ID: ${teacher.teacherId}`,
-            );
-          }
-          return new Types.ObjectId(teacher.teacherId);
-        },
-      );
-    }
-
-    return await classDetails.save();
-  }
 
   private generateGrade(percentage: number): string {
     if (percentage >= 90) return 'Grade A';
@@ -305,9 +174,6 @@ export class ClassService {
     const newCombination = new this.combinationModel({
       name: createCombinationDto.name,
       parentClass: classId,
-      assignedTeachers: createCombinationDto.assignedTeachers || [],
-      students: createCombinationDto.students || [],
-      timetable: createCombinationDto.timetable || [],
     });
 
     const savedCombination = await newCombination.save();
@@ -318,6 +184,39 @@ export class ClassService {
     await parentClass.save();
 
     return savedCombination;
+  }
+
+  async assignTeachersToCombination(combinationId: string, teacherIds: string[]): Promise<ClassCombination> {
+    const combination = await this.combinationModel.findById(combinationId);
+    if (!combination) throw new NotFoundException('Combination not found');
+    combination.assignedTeachers = teacherIds.map(id => new Types.ObjectId(id));
+    return combination.save();
+  }
+
+  async assignStudentsToCombination(combinationId: string, studentIds: string[]): Promise<ClassCombination> {
+    const combination = await this.combinationModel.findById(combinationId);
+    if (!combination) throw new NotFoundException('Combination not found');
+    combination.students = studentIds.map(id => new Types.ObjectId(id));
+    return combination.save();
+  }
+
+  async assignTimetableToCombination(combinationId: string, timetable: TimetableDto[]): Promise<ClassCombination> {
+    const combination = await this.combinationModel.findById(combinationId);
+    if (!combination) throw new NotFoundException('Combination not found');
+
+    // Convert teacher string IDs to ObjectId
+    const convertedTimetable = timetable.map(day => ({
+      day: day.day,
+      schedule: day.schedule.map(sch => ({
+        subject: sch.subject,
+        teacher: new Types.ObjectId(sch.teacher), // convert here
+        startTime: sch.startTime,
+        endTime: sch.endTime,
+      })),
+    }));
+
+    combination.timetable = convertedTimetable;
+    return combination.save();
   }
 
   //   async getClassGradesBySchool(userId: string): Promise<any> {

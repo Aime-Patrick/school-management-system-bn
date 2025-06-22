@@ -144,22 +144,23 @@ export class TeachersService {
     }
   }
 
-  async getTeacherById(teacherId: string): Promise<Teacher> {
-    try {
-      const teacher = await this.teacherModel
-       .findById(teacherId)
-       .populate('school')
-       .exec();
-
-      if (!teacher) {
-        throw new BadRequestException('Teacher not found');
-      }
-
-      return teacher;
-    } catch (error) {
-      throw new InternalServerErrorException('Failed to fetch teacher details');
-    }
+async findTeacher(identifier: string): Promise<Teacher | null> {
+  // Try to find by teacher _id
+  if (Types.ObjectId.isValid(identifier)) {
+    const teacher = await this.teacherModel.findById(identifier)
+      .populate('school')
+      .populate('accountCredentails')
+      .populate("coursesTaught")
+      .exec();
+    if (teacher) return teacher;
   }
+  // Try to find by accountCredentails (user _id)
+  return await this.teacherModel.findOne({ accountCredentails: identifier })
+    .populate('school')
+    .populate('accountCredentails')
+    .populate("coursesTaught")
+    .exec();
+}
 
   async updateTeacher(
     teacherId: string,

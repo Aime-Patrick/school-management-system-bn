@@ -10,7 +10,7 @@ import {
   UseGuards,
   Req,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiBody, ApiParam, getSchemaPath } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/guard/jwt-auth.guard';
 import { Roles } from 'src/decorator/roles.decorator';
 import { RolesGuard } from 'src/guard/roles.guard';
@@ -20,6 +20,7 @@ import { CreateCombinationDto } from './dto/create-class-combination.dto';
 import { UpdateClassDto } from './dto/update-class.dto';
 import { StudentIdsDto } from './dto/student-ids.dto';
 import { CreateClassDto } from './dto/create-class.dto';
+import { TimetableDto } from './dto/timetable.dto';
 
 @ApiTags('classes')
 @Controller('classes')
@@ -59,6 +60,15 @@ export class ClassesController {
     }
   }
 
+  @Get('school/:schoolId')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SCHOOL_ADMIN, UserRole.TEACHER)
+  @ApiOperation({ summary: 'Get all classes in a school' })
+  async getAllClassesInSchool(@Param('schoolId') schoolId: string) {
+    return this.classService.getAllClassesInSchool(schoolId);
+  }
+
   @Get(':classId')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -75,53 +85,53 @@ export class ClassesController {
     }
   }
 
-  @Put(':classId')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SCHOOL_ADMIN)
-  @ApiOperation({
-    summary: 'Update class details',
-    description: 'Update the details of a specific class by its ID.',
-  })
-  async updateClass(
-    @Param('classId') classId: string,
-    @Body() updateClassDto: UpdateClassDto,
-  ) {
-    try {
-      return this.classService.updateClass(classId, updateClassDto);
-    } catch (error) {
-      throw error;
-    }
-  }
+  // @Put(':classId')
+  // @ApiBearerAuth()
+  // @UseGuards(JwtAuthGuard, RolesGuard)
+  // @Roles(UserRole.SCHOOL_ADMIN)
+  // @ApiOperation({
+  //   summary: 'Update class details',
+  //   description: 'Update the details of a specific class by its ID.',
+  // })
+  // async updateClass(
+  //   @Param('classId') classId: string,
+  //   @Body() updateClassDto: UpdateClassDto,
+  // ) {
+  //   try {
+  //     return this.classService.updateClass(classId, updateClassDto);
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // }
 
-  @Post(':classId/students')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SCHOOL_ADMIN)
-  @ApiOperation({
-    summary: 'Add students to a class',
-    description: 'Add students to a specific class by their IDs.',
-  })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        studentIds: {
-          type: 'array',
-          items: { type: 'string' },
-          example: ['student1', 'student2'],
-        },
-      },
-    },
-  })
-  async addStudentsToClass(
-    @Param('classId') classId: string,
-    @Body() dto: StudentIdsDto,
-    @Req() req,
-  ): Promise<any> {
-    const userId = req.user.id;
-    return this.classService.addStudentsToClass(classId, dto.studentIds, userId);
-  }
+  // @Post(':classId/students')
+  // @ApiBearerAuth()
+  // @UseGuards(JwtAuthGuard, RolesGuard)
+  // @Roles(UserRole.SCHOOL_ADMIN)
+  // @ApiOperation({
+  //   summary: 'Add students to a class',
+  //   description: 'Add students to a specific class by their IDs.',
+  // })
+  // @ApiBody({
+  //   schema: {
+  //     type: 'object',
+  //     properties: {
+  //       studentIds: {
+  //         type: 'array',
+  //         items: { type: 'string' },
+  //         example: ['student1', 'student2'],
+  //       },
+  //     },
+  //   },
+  // })
+  // async addStudentsToClass(
+  //   @Param('classId') classId: string,
+  //   @Body() dto: StudentIdsDto,
+  //   @Req() req,
+  // ): Promise<any> {
+  //   const userId = req.user.id;
+  //   return this.classService.addStudentsToClass(classId, dto.studentIds, userId);
+  // }
 
   @Delete(':classId/students')
   @ApiBearerAuth()
@@ -164,5 +174,82 @@ export class ClassesController {
     } catch (error) {
       throw error;
     }
+  }
+
+  @Post(':classId/combinations')
+  @ApiOperation({ summary: 'Add a combination to a class' })
+  @ApiParam({ name: 'classId', description: 'ID of the class' })
+  @ApiBody({ type: CreateCombinationDto })
+  async addCombination(@Param('classId') classId: string, @Body() dto: CreateCombinationDto) {
+    return this.classService.addCombinationToClass(classId, dto);
+  }
+
+  @Put('combinations/:combinationId/teachers')
+  @ApiOperation({ summary: 'Assign teachers to a class combination' })
+  @ApiParam({ name: 'combinationId', description: 'ID of the class combination' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        teacherIds: {
+          type: 'array',
+          items: { type: 'string' },
+          example: ['teacherId1', 'teacherId2'],
+        },
+      },
+    },
+  })
+  async assignTeachers(@Param('combinationId') id: string, @Body() dto: { teacherIds: string[] }) {
+    return this.classService.assignTeachersToCombination(id, dto.teacherIds);
+  }
+
+  @Put('combinations/:combinationId/students')
+  @ApiOperation({ summary: 'Assign students to a class combination' })
+  @ApiParam({ name: 'combinationId', description: 'ID of the class combination' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        studentIds: {
+          type: 'array',
+          items: { type: 'string' },
+          example: ['studentId1', 'studentId2'],
+        },
+      },
+    },
+  })
+  async assignStudents(@Param('combinationId') id: string, @Body() dto: { studentIds: string[] }) {
+    return this.classService.assignStudentsToCombination(id, dto.studentIds);
+  }
+
+  @Put('combinations/:combinationId/timetable')
+  @ApiOperation({ summary: 'Assign timetable to a class combination' })
+  @ApiParam({ name: 'combinationId', description: 'ID of the class combination' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        timetable: {
+          type: 'array',
+          items: { $ref: getSchemaPath(TimetableDto) },
+          example: [
+            {
+              day: 'Monday',
+              schedule: [
+                {
+                  subject: 'Mathematics',
+                  teacher: 'teacherId1',
+                  startTime: '08:00',
+                  endTime: '09:00',
+                },
+              ],
+            },
+          ],
+        },
+      },
+    },
+  })
+  async assignTimetable(@Param('combinationId') id: string, @Body() dto: { timetable: TimetableDto[] }) {
+    return this.classService.assignTimetableToCombination(id, dto.timetable);
   }
 }

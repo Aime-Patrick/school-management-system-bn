@@ -5,12 +5,14 @@ import { UtilsModule } from 'src/utils/utils.module';
 import { SchoolService } from './school.service';
 import { SchoolController } from './school.controller';
 import { User, UserSchema } from 'src/schemas/user.schema';
-
+import { MailModule } from '../mail/mail.module';
+import { Teacher, TeacherSchema } from 'src/schemas/teacher.schema';
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: School.name, schema: SchoolSchema }]),
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
-   UtilsModule],
+    MongooseModule.forFeature([{ name: Teacher.name, schema: TeacherSchema }]),
+   UtilsModule,MailModule],
   controllers: [SchoolController],
   providers: [SchoolService],
   exports: [SchoolService]

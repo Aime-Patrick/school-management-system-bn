@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Req, UseGuards, Get, Param, Put, Delete, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Post, Body, Req, UseGuards, Get, Param, Put, Delete, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { TeachersService } from './teachers.service';
 import { JwtAuthGuard } from 'src/guard/jwt-auth.guard';
@@ -36,10 +36,14 @@ export class TeachersController {
   @Get(':teacherId')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SCHOOL_ADMIN)
+  @Roles(UserRole.SCHOOL_ADMIN, UserRole.TEACHER)
   @ApiOperation({ summary: 'Get teacher by ID', description: 'Retrieve a teacher by their ID.' })
   async getTeacherById(@Param('teacherId') teacherId: string) {
-    return this.teacherService.getTeacherById(teacherId);
+    const teacher = await this.teacherService.findTeacher(teacherId);
+    if (!teacher) {
+      throw new BadRequestException(`Teacher with ID ${teacherId} not found.`);
+    }
+    return teacher;
   }
 
   @Put(':teacherId')

@@ -3,12 +3,21 @@ import { School } from 'src/schemas/school.schema';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import { CreateSchoolDto } from './dto/create-school.dto';
-import { User } from 'src/schemas/user.schema';
+import { User, UserRole } from 'src/schemas/user.schema';
+import { randomBytes } from 'crypto';
+import { MailService } from '../mail/mail.service';
+import { HashService } from 'src/utils/utils.service';
+import { log } from 'console';
+import { Teacher } from 'src/schemas/teacher.schema';
+
 @Injectable()
 export class SchoolService {
     constructor(
         @InjectModel(School.name) private schoolModel: Model<School>,
         @InjectModel(User.name) private userModel: Model<User>,
+        @InjectModel(Teacher.name) private teacherModel: Model<Teacher>,
+        private mailService: MailService,
+        private hashUtils: HashService,
 ) {}
 
     async createSchool(createSchoolDto: CreateSchoolDto, schoolAdmin: string, uploadedFile:string): Promise<School> {
@@ -77,5 +86,39 @@ export class SchoolService {
           plan: isActive ? school.subscriptionPlan : null,
         };
       }
-      
+
+      async resetTeacherPassword(teacherUserId: string, schoolAdminId: string): Promise<{ message: string }> {
+        // Ensure the teacher belongs to the admin's school
+        const school = await this.schoolModel.findOne({ schoolAdmin: schoolAdminId });
+        if (!school) throw new NotFoundException('School not found');
+
+        const teacher = await this.teacherModel.findById(teacherUserId);
+        if (!teacher) throw new NotFoundException('Teacher user not found');
+
+         if (teacher.school.toString() !== school._id.toString()) {
+        throw new BadRequestException('Teacher does not belong to your school');
+    }
+
+
+        const user = await this.userModel.findOne({ _id: teacher.accountCredentails, role: UserRole.TEACHER });
+        if (!user) {
+            throw new NotFoundException('Teacher account credentials not found');
+        }
+        // Generate new password
+        const newPassword = randomBytes(6).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10);
+        const hashedPassword = await this.hashUtils.hashPassword(newPassword);
+
+        user.password = hashedPassword;
+        await user.save();
+
+        // Email the new password to the teacher
+        await this.mailService.sendAccountInfoEmail(
+            user.email,
+            user.username,
+            newPassword,
+            user.role
+        );
+
+        return { message: 'Password reset and emailed to teacher.' };
+    }
 }

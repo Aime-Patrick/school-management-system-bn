@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Post, Get, Put, Delete, Param, Req, UseGuards, UploadedFile, UseInterceptors, UploadedFiles, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Post, Get, Put, Delete, Param, Req, UseGuards, UploadedFile, UseInterceptors, UploadedFiles, NotFoundException, Patch } from '@nestjs/common';
 import { SchoolService } from './school.service';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiConsumes, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/guard/jwt-auth.guard';
@@ -101,5 +101,17 @@ export class SchoolController {
             }
             throw new Error('An error occurred while checking the subscription status.');
         }
+    }
+
+    @Patch('reset-teacher-password/:teacherUserId')
+    @ApiBearerAuth()
+    @Roles(UserRole.SCHOOL_ADMIN)
+    @ApiOperation({ summary: 'Reset a teacher\'s password and email it to them' })
+    async resetTeacherPassword(
+      @Param('teacherUserId') teacherUserId: string,
+      @Req() req
+    ) {
+      const schoolAdminId = req.user.id;
+      return this.schoolService.resetTeacherPassword(teacherUserId, schoolAdminId);
     }
 }
