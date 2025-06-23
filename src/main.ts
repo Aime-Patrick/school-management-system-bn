@@ -7,7 +7,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors({
     origin: [
-      'http://localhost:5173',
+      'http://62.171.147.235',
       'https://school-management-system-fn.vercel.app',
       "https://school-management-system-bn-production.up.railway.app"
     ],
