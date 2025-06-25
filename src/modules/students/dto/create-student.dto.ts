@@ -43,7 +43,7 @@ export class CreateStudentDto {
   @ApiProperty({ example: '60d0fe4f5311236168a109cc', description: 'The ID of the ClassCombination' })
   @IsMongoId()
   @IsNotEmpty()
-  classCombination: string;
+  combination: string;
 
   @ApiProperty({ example: '2022-09-01' })
   @IsDate()

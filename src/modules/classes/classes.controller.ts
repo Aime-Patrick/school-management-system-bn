@@ -252,4 +252,14 @@ export class ClassesController {
   async assignTimetable(@Param('combinationId') id: string, @Body() dto: { timetable: TimetableDto[] }) {
     return this.classService.assignTimetableToCombination(id, dto.timetable);
   }
+
+  @Delete(':classId')
+  @ApiOperation({ summary: 'Delete a class', description: 'Delete a class by its ID.' })
+  @ApiParam({ name: 'classId', description: 'ID of the class to delete' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SCHOOL_ADMIN)
+  async deleteClass(@Param('classId') classId: string) {
+    return this.classService.deleteClass(classId);
+  }
 }

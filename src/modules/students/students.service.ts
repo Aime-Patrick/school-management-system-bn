@@ -43,13 +43,15 @@ export class StudentsService {
     accountCredentials: StudentCredentials;
     studentPassword: string;
   }> {
+    const session = await this.studentModel.db.startSession();
+    session.startTransaction();
     try {
       // Validate the school admin
       const schoolAdmin = await this.schoolModel.findOne({
         schoolAdmin: adminId,
       });
       if (!schoolAdmin) {
-        throw new UnauthorizedException('School Admin not found');
+        throw new UnauthorizedException('School not found');
       }
 
       // Check for existing student or user with the same phone number
@@ -66,7 +68,7 @@ export class StudentsService {
 
       // Validate the ClassCombination
       const existingCombination = await this.classCombinationModel.findById(
-        createStudentDto.classCombination,
+        createStudentDto.combination,
       );
       if (!existingCombination) {
         throw new BadRequestException('ClassCombination not found');
@@ -74,10 +76,8 @@ export class StudentsService {
 
       // Ensure the ClassCombination belongs to the same school
       const parentClass = await this.classModel.findById(existingCombination.parentClass);
-      if (!parentClass || !parentClass.school.equals(schoolAdmin._id)) {
-        throw new BadRequestException(
-          'ClassCombination does not belong to the same school as the student',
-        );
+      if (parentClass && parentClass.school.toString() !== schoolAdmin._id.toString()) {
+        throw new BadRequestException('School does not match');
       }
 
       // Generate a unique registration number
@@ -106,16 +106,11 @@ export class StudentsService {
         ...createStudentDto,
         school: schoolId,
         registrationNumber,
-        classCombination: createStudentDto.classCombination,
       });
-
-      await newStudent.save();
+      await newStudent.save({ session });
 
       // Generate credentials
-      const { password } = await this.createStudentCredentials(
-        newStudent,
-        createStudentDto.email,
-      );
+      const { password } = await this.createStudentCredentials(newStudent, createStudentDto.email);
       const hashedPassword = await this.hashUtils.hashPassword(password);
 
       const credentials = new this.studentCredentialsModel({
@@ -125,15 +120,18 @@ export class StudentsService {
         ),
         password: hashedPassword,
         registrationNumber,
-        classCombination: createStudentDto.classCombination,
+        class: createStudentDto.class,
         student: newStudent._id,
       });
 
       // Add the student to the ClassCombination
       existingCombination.students.push(newStudent._id);
-      await existingCombination.save();
+      await existingCombination.save({ session });
 
-      await credentials.save();
+      await credentials.save({ session });
+
+      await session.commitTransaction();
+      session.endSession();
 
       return {
         newStudent,
@@ -141,8 +139,9 @@ export class StudentsService {
         studentPassword: password,
       };
     } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
       if (error.code === 11000) {
-        // Handle MongoDB duplicate key error
         throw new BadRequestException('Duplicate key error: ' + error.message);
       }
       throw error;

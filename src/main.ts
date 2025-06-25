@@ -9,7 +9,7 @@ async function bootstrap() {
     origin: [
       'http://62.171.147.235',
       'https://school-management-system-fn.vercel.app',
-      "https://school-management-system-bn-production.up.railway.app"
+      "http://localhost:5173"
     ],
     Credential:true
   });

@@ -12,8 +12,6 @@ export class ClassCombination extends Document {
   @Prop({ required: true, type: Types.ObjectId, ref: 'Class' })
   parentClass: Types.ObjectId;
 
-  
-
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Teacher' }] })
   assignedTeachers: Types.ObjectId[];
 

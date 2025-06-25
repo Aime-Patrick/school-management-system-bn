@@ -77,9 +77,11 @@ export class ClassService {
       throw new BadRequestException('Invalid school ID');
     }
     return this.classModel
-      .find({ school: schoolId })
-      .populate('combinations')
-      .exec();
+      .find({ school:schoolId })
+      .populate({
+  path: 'combinations',
+  model: 'ClassCombination',
+})
   }
 
   // Get class details
@@ -281,4 +283,15 @@ export class ClassService {
 
   //     return groupedGrades;
   //   }
+  async deleteClass(classId: string): Promise<{ message: string }> {
+    if (!Types.ObjectId.isValid(classId)) {
+      throw new BadRequestException('Invalid class ID');
+    }
+    const deleted = await this.classModel.findByIdAndDelete(classId);
+    if (!deleted) {
+      throw new NotFoundException('Class not found');
+    }
+    return { message: 'Class deleted successfully' };
+  }
 }
+
