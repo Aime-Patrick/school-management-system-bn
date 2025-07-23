@@ -14,17 +14,22 @@ import { ResultService } from '../result/result.service';
 import { Class } from 'src/schemas/class.schema';
 import { CreateClassDto } from './dto/create-class.dto';
 import { TimetableDto } from './dto/timetable.dto';
+import { UpdateTimetableDto } from './dto/update-timetable.dto';
 @Injectable()
 export class ClassService {
   constructor(
-    @InjectModel(ClassCombination.name) private combinationModel: Model<ClassCombination>,
+    @InjectModel(ClassCombination.name)
+    private combinationModel: Model<ClassCombination>,
     @InjectModel(School.name) private schoolModel: Model<School>,
     @InjectModel(Result.name) private resultModel: Model<Result>,
     @InjectModel(Class.name) private classModel: Model<Class>,
     private resultService: ResultService,
   ) {}
 
-  async create(createClassDto: CreateCombinationDto, userId: string): Promise<ClassCombination> {
+  async create(
+    createClassDto: CreateCombinationDto,
+    userId: string,
+  ): Promise<ClassCombination> {
     const school = await this.schoolModel.findOne({ schoolAdmin: userId });
     if (!school) {
       throw new NotFoundException('School not found');
@@ -36,11 +41,19 @@ export class ClassService {
     return createdClass.save();
   }
 
-  async createClass(createClassDto: CreateClassDto, schoolId: string): Promise<Class> {
+  async createClass(
+    createClassDto: CreateClassDto,
+    schoolId: string,
+  ): Promise<Class> {
     // Check for duplicate class name in the same school
-    const existing = await this.classModel.findOne({ name: createClassDto.name, school: schoolId });
+    const existing = await this.classModel.findOne({
+      name: createClassDto.name,
+      school: schoolId,
+    });
     if (existing) {
-      throw new BadRequestException('A class with this name already exists in this school.');
+      throw new BadRequestException(
+        'A class with this name already exists in this school.',
+      );
     }
 
     const createdClass = new this.classModel({
@@ -77,11 +90,17 @@ export class ClassService {
       throw new BadRequestException('Invalid school ID');
     }
     return this.classModel
-      .find({ school:schoolId })
+      .find({ school: schoolId })
       .populate({
-  path: 'combinations',
-  model: 'ClassCombination',
-})
+        path: 'combinations',
+        populate: {
+          path: 'timetable.schedule.teacher',
+          select: 'firstName lastName email',
+        },
+        model: 'ClassCombination',
+      })
+
+      .exec();
   }
 
   // Get class details
@@ -106,7 +125,6 @@ export class ClassService {
     return classDetails;
   }
 
-
   // Remove students from class
   async removeStudentsFromClass(
     classId: string,
@@ -121,7 +139,6 @@ export class ClassService {
 
     return classDetails;
   }
-
 
   private generateGrade(percentage: number): string {
     if (percentage >= 90) return 'Grade A';
@@ -182,34 +199,47 @@ export class ClassService {
 
     // Add the combination to the parent class
     parentClass.combinations = parentClass.combinations || [];
-    parentClass.combinations.push(new Types.ObjectId(savedCombination._id as string));
+    parentClass.combinations.push(
+      new Types.ObjectId(savedCombination._id as string),
+    );
     await parentClass.save();
 
     return savedCombination;
   }
 
-  async assignTeachersToCombination(combinationId: string, teacherIds: string[]): Promise<ClassCombination> {
+  async assignTeachersToCombination(
+    combinationId: string,
+    teacherIds: string[],
+  ): Promise<ClassCombination> {
     const combination = await this.combinationModel.findById(combinationId);
     if (!combination) throw new NotFoundException('Combination not found');
-    combination.assignedTeachers = teacherIds.map(id => new Types.ObjectId(id));
+    combination.assignedTeachers = teacherIds.map(
+      (id) => new Types.ObjectId(id),
+    );
     return combination.save();
   }
 
-  async assignStudentsToCombination(combinationId: string, studentIds: string[]): Promise<ClassCombination> {
+  async assignStudentsToCombination(
+    combinationId: string,
+    studentIds: string[],
+  ): Promise<ClassCombination> {
     const combination = await this.combinationModel.findById(combinationId);
     if (!combination) throw new NotFoundException('Combination not found');
-    combination.students = studentIds.map(id => new Types.ObjectId(id));
+    combination.students = studentIds.map((id) => new Types.ObjectId(id));
     return combination.save();
   }
 
-  async assignTimetableToCombination(combinationId: string, timetable: TimetableDto[]): Promise<ClassCombination> {
+  async assignTimetableToCombination(
+    combinationId: string,
+    timetable: TimetableDto[],
+  ): Promise<ClassCombination> {
     const combination = await this.combinationModel.findById(combinationId);
     if (!combination) throw new NotFoundException('Combination not found');
 
     // Convert teacher string IDs to ObjectId
-    const convertedTimetable = timetable.map(day => ({
+    const convertedTimetable = timetable.map((day) => ({
       day: day.day,
-      schedule: day.schedule.map(sch => ({
+      schedule: day.schedule.map((sch) => ({
         subject: sch.subject,
         teacher: new Types.ObjectId(sch.teacher), // convert here
         startTime: sch.startTime,
@@ -218,6 +248,43 @@ export class ClassService {
     }));
 
     combination.timetable = convertedTimetable;
+    return combination.save();
+  }
+
+  async updateTimetableForCombination(
+    combinationId: string,
+    timetable: UpdateTimetableDto[],
+  ): Promise<ClassCombination> {
+    const combination = await this.combinationModel.findById(combinationId);
+    if (!combination) {
+      throw new NotFoundException('Combination not found');
+    }
+    // Convert teacher string IDs to ObjectId
+    const convertedTimetable = timetable.map((day) => ({
+      day: day.day ?? '',
+      schedule: (day.schedule ?? []).map((sch) => ({
+        subject: sch.subject,
+        teacher: new Types.ObjectId(sch.teacher), // convert here
+        startTime: sch.startTime,
+        endTime: sch.endTime,
+      })),
+    }));
+    combination.timetable = convertedTimetable;
+    return combination.save();
+  }
+
+  async deleteDayFromTimetable(
+    combinationId: string,
+    day: string,
+  ): Promise<ClassCombination> {
+    const combination = await this.combinationModel.findById(combinationId);
+    if (!combination) {
+      throw new NotFoundException('Combination not found');
+    }
+    // Filter out the day to be deleted
+    combination.timetable = combination.timetable.filter(
+      (t) => t.day !== day,
+    );
     return combination.save();
   }
 
@@ -294,4 +361,3 @@ export class ClassService {
     return { message: 'Class deleted successfully' };
   }
 }
-

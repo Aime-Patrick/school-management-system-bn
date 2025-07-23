@@ -21,6 +21,7 @@ import { UpdateClassDto } from './dto/update-class.dto';
 import { StudentIdsDto } from './dto/student-ids.dto';
 import { CreateClassDto } from './dto/create-class.dto';
 import { TimetableDto } from './dto/timetable.dto';
+import { UpdateTimetableDto } from './dto/update-timetable.dto';
 
 @ApiTags('classes')
 @Controller('classes')
@@ -253,6 +254,36 @@ export class ClassesController {
     return this.classService.assignTimetableToCombination(id, dto.timetable);
   }
 
+  @Put('combinations/:combinationId/update-timetable')
+  @ApiOperation({ summary: 'Update timetable for a class combination' })
+  @ApiParam({ name: 'combinationId', description: 'ID of the class combination' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        timetable: {
+          type: 'array',
+          items: { $ref: getSchemaPath(UpdateTimetableDto) },
+          example: [
+            {
+              day: 'Monday',
+              schedule: [
+                {
+                  subject: 'Mathematics',
+                  teacher: 'teacherId1',
+                  startTime: '08:00',
+                  endTime: '09:00',
+                },
+              ],
+            },
+          ],
+        },
+      },
+    },
+  })
+  async updateTimetable(@Param('combinationId') id: string, @Body() dto: { timetable: UpdateTimetableDto[] }) {
+    return this.classService.updateTimetableForCombination(id, dto.timetable);
+  }
   @Delete(':classId')
   @ApiOperation({ summary: 'Delete a class', description: 'Delete a class by its ID.' })
   @ApiParam({ name: 'classId', description: 'ID of the class to delete' })
@@ -261,5 +292,27 @@ export class ClassesController {
   @Roles(UserRole.SCHOOL_ADMIN)
   async deleteClass(@Param('classId') classId: string) {
     return this.classService.deleteClass(classId);
+  }
+
+  @Delete('combinations/:combinationId/delete-day-timetable')
+  @ApiOperation({ summary: 'Delete a day from the timetable of a class combination' })
+  @ApiParam({ name: 'combinationId', description: 'ID of the class combination' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        day: {
+          type: 'string',
+          example: 'Monday',
+          description: 'The day to be deleted from the timetable',
+        },
+      },
+    },
+  })
+  async deleteDayFromTimetable(
+    @Param('combinationId') combinationId: string,
+    @Body() dto: { day: string },
+  ) {
+    return this.classService.deleteDayFromTimetable(combinationId, dto.day);
   }
 }

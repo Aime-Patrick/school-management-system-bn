@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { DaySchema } from './sub-schema.schema';
 
 @Schema({ timestamps: true })
 export class ClassCombination extends Document {
@@ -19,19 +20,7 @@ export class ClassCombination extends Document {
   students: Types.ObjectId[];
 
   @Prop({
-    type: [
-      {
-        day: String, // Monday, Tuesday, etc.
-        schedule: [
-          {
-            subject: String,
-            teacher: { type: Types.ObjectId, ref: 'Teacher' },
-            startTime: String, // "08:00 AM"
-            endTime: String, // "09:00 AM"
-          },
-        ],
-      },
-    ],
+    type: [DaySchema],
     default: [],
   })
   timetable: {
@@ -44,11 +33,16 @@ export class ClassCombination extends Document {
     }[];
   }[];
 
-  @Prop({ type: [{ student: { type: Types.ObjectId, ref: 'Student' }, grades: [Number] }] })
+  @Prop({
+    type: [
+      { student: { type: Types.ObjectId, ref: 'Student' }, grades: [Number] },
+    ],
+  })
   performance: {
     student: Types.ObjectId;
     grades: number[];
   }[];
 }
 
-export const ClassCombinationSchema = SchemaFactory.createForClass(ClassCombination);
+export const ClassCombinationSchema =
+  SchemaFactory.createForClass(ClassCombination);
