@@ -12,28 +12,23 @@ export class PaymentService {
 
     async recordPayment(dto: RecordPaymentDto): Promise<{ message: string; payment: Payment }> {
         try {
-          const totalSoFar = await this.paymentModel.aggregate([
-            { $match: { schoolId: new Types.ObjectId(dto.schoolId), status: 'approved' } },
-            { $group: { _id: null, total: { $sum: "$amount" } } }
-          ]);
-      
-          const previousTotal = totalSoFar[0]?.total || 0;
-      
-          const payment = await this.paymentModel.create({
-            ...dto,
-            totalPayment: previousTotal + dto.amount,
-          });
-      
+          const payment = await this.paymentModel.create({ dto });
           return { message: "Payment recorded successfully", payment };
         } catch (error) {
           throw error;
         }
       }      
 
-    async getRecordPayment():Promise<Payment[]>{
+    async getRecordPayment():Promise<{ totalPayment: number; payment: Payment[] }> {
         try {
-            const payment = await this.paymentModel.find().populate('schoolId');
-            return payment;
+          const totalSoFar = await this.paymentModel.aggregate([
+            { $match: { status: 'approved' } },
+            { $group: { _id: null, total: { $sum: "$amount" } } }
+          ]);
+      
+          const totalPayment = totalSoFar[0]?.total || 0;
+          const payment = await this.paymentModel.find().populate('schoolId');
+          return { totalPayment, payment };
         } catch (error) {
             throw error;
         }
