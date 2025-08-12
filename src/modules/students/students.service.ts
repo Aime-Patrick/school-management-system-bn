@@ -19,6 +19,7 @@ import { ClassCombination } from 'src/schemas/ClassCombination.schema';
 import { StudentCredentials } from 'src/schemas/student-credentials.schema';
 import { StudentPayment } from 'src/schemas/student-payment';
 import { Class } from 'src/schemas/class.schema';
+import { Counter } from 'src/schemas/counter.schema'; // Import Counter schema
 @Injectable()
 export class StudentsService {
   constructor(
@@ -31,6 +32,7 @@ export class StudentsService {
     @InjectModel(Class.name) private classModel: Model<Class>,
     @InjectModel(StudentCredentials.name) private studentCredentialsModel: Model<StudentCredentials>,
     @InjectModel(StudentPayment.name) private studentPaymentModel: Model<StudentPayment>,
+    @InjectModel(Counter.name) private counterModel: Model<Counter>, // Inject Counter model
     private hashUtils: HashService,
   ) {}
 
@@ -80,16 +82,21 @@ export class StudentsService {
         throw new BadRequestException('School does not match');
       }
 
-      // Generate a unique registration number
+      // Generate a unique registration number using an atomic counter
       const schoolId = schoolAdmin._id;
       const currentYear = new Date().getFullYear();
-      const studentCount = await this.studentModel.countDocuments({
-        school: schoolId,
-      });
+      const counterName = `studentRegistrationNumber_${schoolId.toString()}`;
+      const counter = await this.counterModel.findOneAndUpdate(
+        { name: counterName },
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true, session }
+      );
+      const studentSequence = counter.seq;
+
       const registrationNumber = this.hashUtils.generatorRegistrationNumber(
         schoolAdmin.schoolCode,
         currentYear,
-        studentCount,
+        studentSequence, // Use the atomically incremented sequence
       );
 
       // Handle profile picture upload

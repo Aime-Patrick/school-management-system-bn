@@ -13,6 +13,7 @@ import { ClassCombination, ClassCombinationSchema } from 'src/schemas/ClassCombi
 import { Class, ClassSchema } from 'src/schemas/class.schema'; // Import Class schema
 import { HashService } from 'src/utils/utils.service';
 import { StudentPayment, StudentPaymentSchema } from 'src/schemas/student-payment';
+import { Counter, CounterSchema } from 'src/schemas/counter.schema';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { StudentPayment, StudentPaymentSchema } from 'src/schemas/student-paymen
       { name: ClassCombination.name, schema: ClassCombinationSchema },
       { name: Class.name, schema: ClassSchema },
       { name: StudentPayment.name, schema: StudentPaymentSchema },
+      { name: Counter.name, schema: CounterSchema },
     ]),
   ],
   controllers: [StudentsController],
