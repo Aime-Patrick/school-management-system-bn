@@ -128,7 +128,7 @@ export class StudentsService {
         ),
         password: hashedPassword,
         phoneNumber: createStudentDto.phoneNumber,
-        email: createStudentDto.email ? createStudentDto.email : 'none',
+        email: (createStudentDto.email && createStudentDto.email !== 'none') ? createStudentDto.email : null, // Set to null if no email or 'none'
         role: UserRole.STUDENT,
         mustChangePassword: true, // Set to true to force password change on first login
       });

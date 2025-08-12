@@ -17,7 +17,7 @@ export class User {
 
   @Prop({ required: function(){
     return this.role !== UserRole.STUDENT;
-  }})
+  }, unique: true, sparse: true }) // Added unique: true and sparse: true
   email: string;
 
   @Prop({ required: function(){
