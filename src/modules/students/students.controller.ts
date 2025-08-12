@@ -10,13 +10,15 @@ import { UserRole } from 'src/schemas/user.schema';
 import { SubscriptionGuard } from 'src/guard/plan/plan.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { HashService } from 'src/utils/utils.service';
+import { MailService } from 'src/modules/mail/mail.service'; // Import MailService
 
 @ApiTags('students')
 @Controller('students')
 @UseGuards(JwtAuthGuard, RolesGuard,SubscriptionGuard)
 export class StudentsController {
-    constructor(private readonly studentsService: StudentsService,
-                
+    constructor(
+        private readonly studentsService: StudentsService,
+        private readonly mailService: MailService, // Inject MailService
     ) {}
 
     @Post()
@@ -28,8 +30,19 @@ export class StudentsController {
     async createStudent(@Body() createStudentDto: CreateStudentDto, @Req() req,  @UploadedFile() file: Express.Multer.File,) {
         try {
             const schoolAdmin = req.user.id;
-           
-            return await this.studentsService.createStudent(createStudentDto, schoolAdmin, file);
+            const { newStudent, accountCredentials, studentPassword } = await this.studentsService.createStudent(createStudentDto, schoolAdmin, file);
+
+            // Send email if student has an email address
+            if (createStudentDto.email && createStudentDto.email !== 'none') {
+                await this.mailService.sendAccountInfoEmail(
+                    createStudentDto.email,
+                    newStudent.firstName, // fullName
+                    studentPassword,
+                    UserRole.STUDENT // role
+                );
+            }
+            
+            return { newStudent, accountCredentials, studentPassword };
         } catch (error) {
             throw error;
         }
@@ -159,4 +172,3 @@ export class StudentsController {
         return this.studentsService.resetStudentPassword(registrationNumber);
     }
 }
-

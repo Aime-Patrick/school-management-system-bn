@@ -116,15 +116,31 @@ export class StudentsService {
       });
       await newStudent.save({ session });
 
-      // Generate credentials
-      const { password } = await this.createStudentCredentials(newStudent, createStudentDto.email);
-      const hashedPassword = await this.hashUtils.hashPassword(password);
+      // Determine the password to use
+      const initialPassword = createStudentDto.password || this.hashUtils.generatePassword(newStudent.firstName);
+      const hashedPassword = await this.hashUtils.hashPassword(initialPassword);
 
-      const credentials = new this.studentCredentialsModel({
+      // Create user account
+      const user = new this.userModel({
         username: this.hashUtils.generateUsernameForStudent(
           newStudent.firstName,
           registrationNumber,
         ),
+        password: hashedPassword,
+        phoneNumber: createStudentDto.phoneNumber,
+        email: createStudentDto.email ? createStudentDto.email : 'none',
+        role: UserRole.STUDENT,
+        mustChangePassword: true, // Set to true to force password change on first login
+      });
+      await user.save({ session });
+
+      // Update student with account credentials
+      newStudent.accountCredentails = user._id as any; // Cast to any to resolve TypeScript error
+      await newStudent.save({ session });
+
+      // Create student credentials
+      const credentials = new this.studentCredentialsModel({
+        username: user.username,
         password: hashedPassword,
         registrationNumber,
         class: createStudentDto.class,
@@ -143,7 +159,7 @@ export class StudentsService {
       return {
         newStudent,
         accountCredentials: credentials,
-        studentPassword: password,
+        studentPassword: initialPassword, // Return initialPassword
       };
     } catch (error) {
       await session.abortTransaction();
@@ -155,27 +171,6 @@ export class StudentsService {
     }
   }
 
-  async createStudentCredentials(student: Student, email?: string) {
-    const password = this.hashUtils.generatePassword(student.firstName);
-    const hashedPassword = await this.hashUtils.hashPassword(password);
-
-    const user = new this.userModel({
-      username: this.hashUtils.generateUsernameForStudent(
-        student.firstName,
-        student.registrationNumber,
-      ),
-      password: hashedPassword,
-      phoneNumber: student.phoneNumber,
-      email: email ? email : 'none',
-      role: UserRole.STUDENT,
-    });
-    await user.save();
-    await this.studentModel.findOneAndUpdate(
-      { registrationNumber: student?.registrationNumber },
-      { accountCredentails: user },
-    );
-    return { user, password };
-  }
 
   async findAllStudents(userId: string): Promise<Student[]> {
     let school: any;

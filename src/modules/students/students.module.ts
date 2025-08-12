@@ -14,10 +14,12 @@ import { Class, ClassSchema } from 'src/schemas/class.schema'; // Import Class s
 import { HashService } from 'src/utils/utils.service';
 import { StudentPayment, StudentPaymentSchema } from 'src/schemas/student-payment';
 import { Counter, CounterSchema } from 'src/schemas/counter.schema';
+import { MailModule } from 'src/modules/mail/mail.module'; // Import MailModule
 
 @Module({
   imports: [
     UtilsModule,
+    MailModule, // Import MailModule here
     MongooseModule.forFeature([
       { name: Student.name, schema: StudentSchema },
       { name: StudentCredentials.name, schema: StudentCredentialsSchema },

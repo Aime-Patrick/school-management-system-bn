@@ -74,5 +74,9 @@ export class CreateStudentDto {
   @IsString()
   @IsOptional()
   email: string;
-  
+
+  @ApiProperty({ example: 'defaultPassword123', description: 'Optional default password for the student' })
+  @IsString()
+  @IsOptional()
+  password?: string;
 }

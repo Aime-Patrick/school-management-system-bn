@@ -45,7 +45,7 @@ export class AuthService {
       );
   
       if (!isPasswordValid) {
-        throw new UnauthorizedException('Invalid password');
+        throw new UnauthorizedException('Invalid credentials');
       }
   
       const payload: any = {
