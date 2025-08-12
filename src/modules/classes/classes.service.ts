@@ -15,6 +15,8 @@ import { Class } from 'src/schemas/class.schema';
 import { CreateClassDto } from './dto/create-class.dto';
 import { TimetableDto } from './dto/timetable.dto';
 import { UpdateTimetableDto } from './dto/update-timetable.dto';
+
+const STUDENT_POPULATE_FIELDS = 'firstName lastName email';
 @Injectable()
 export class ClassService {
   constructor(
@@ -77,7 +79,15 @@ export class ClassService {
     return this.combinationModel
       .find(filters)
       .populate('assignedTeachers')
-      .populate('students')
+      .populate({
+        path: 'students',
+        populate: {
+          path: 'accountCredentails',
+          select: 'email',
+          model: 'User',
+        },
+        select: 'firstName lastName', // Only select firstName and lastName from Student
+      })
       .populate({
         path: 'timetable.schedule.teacher',
         select: 'firstName lastName email',
@@ -93,10 +103,22 @@ export class ClassService {
       .find({ school: schoolId })
       .populate({
         path: 'combinations',
-        populate: {
-          path: 'timetable.schedule.teacher',
-          select: 'firstName lastName email',
-        },
+        populate: [
+          {
+            path: 'timetable.schedule.teacher',
+            select: 'firstName lastName email',
+          },
+          {
+            path: 'students',
+            populate: {
+              path: 'accountCredentails',
+              select: 'email',
+              model: 'User',
+            },
+            select: 'firstName lastName registrationNumber dateOfBirth gender phoneNumber address city enrollmentDate', // Only select firstName and lastName from Student
+            model: 'Student',
+          },
+        ],
         model: 'ClassCombination',
       })
 
@@ -111,7 +133,15 @@ export class ClassService {
     const classDetails = await this.combinationModel
       .findById(classId)
       .populate('assignedTeachers')
-      .populate('students')
+      .populate({
+        path: 'students',
+        populate: {
+          path: 'accountCredentails',
+          select: 'email',
+          model: 'User',
+        },
+        select: 'firstName lastName', // Only select firstName and lastName from Student
+      })
       .populate({
         path: 'timetable.schedule.teacher',
         select: 'firstName lastName email',
