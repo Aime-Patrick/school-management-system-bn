@@ -12,6 +12,7 @@ import { HashService } from 'src/utils/utils.service';
 import { User, UserRole } from 'src/schemas/user.schema';
 import { ExceptionsHandler } from '@nestjs/core/exceptions/exceptions-handler';
 import { MailService } from '../mail/mail.service';
+import { UpdateTeacherDto } from './dto/update-teacher.dto';
 interface ITeacher extends Teacher {
   _id: Types.ObjectId;
 }
@@ -164,7 +165,7 @@ async findTeacher(identifier: string): Promise<Teacher | null> {
 
   async updateTeacher(
     teacherId: string,
-    updateTeacherDto: CreateTeacherDto,
+    updateTeacherDto: UpdateTeacherDto,
   ): Promise<Teacher> {
     try {
       const updatedTeacher = await this.teacherModel.findByIdAndUpdate(

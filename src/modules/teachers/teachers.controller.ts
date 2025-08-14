@@ -7,7 +7,7 @@ import { RolesGuard } from 'src/guard/roles.guard';
 import { CreateTeacherDto } from './dto/create-teacher.dto';
 import { UserRole } from 'src/schemas/user.schema';
 import { FileInterceptor } from '@nestjs/platform-express';
-
+import { UpdateTeacherDto } from './dto/update-teacher.dto';
 @ApiTags('teachers')
 @Controller('teachers')
 export class TeachersController {
@@ -51,7 +51,7 @@ export class TeachersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SCHOOL_ADMIN)
   @ApiOperation({ summary: 'Update teacher', description: 'Update a teacher record by their ID.' })
-  async updateTeacher(@Param('teacherId') teacherId: string, @Body() updateTeacherDto: CreateTeacherDto) {
+  async updateTeacher(@Param('teacherId') teacherId: string, @Body() updateTeacherDto: UpdateTeacherDto) {
     return this.teacherService.updateTeacher(teacherId, updateTeacherDto);
   }
 
