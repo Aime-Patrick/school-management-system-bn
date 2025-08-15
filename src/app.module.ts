@@ -22,6 +22,8 @@ import { SystemAdminModule } from './modules/system-admin/system-admin.module';
 import { PlanModule } from './modules/plan/plan.module';
 import { AcademicModule } from './modules/academic/academic.module';
 import { StudentPaymentModule } from './modules/student-payment/student-payment.module';
+import { FeesModule } from './modules/fees/fees.module';
+import { LibraryModule } from './modules/library/library.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ load: [databaseConfig] }),
@@ -50,7 +52,9 @@ import { StudentPaymentModule } from './modules/student-payment/student-payment.
     SeedersModule,
     PlanModule,
     AcademicModule,
-    StudentPaymentModule
+    StudentPaymentModule,
+    FeesModule,
+    LibraryModule
   ],
   controllers: [AppController],
   providers: [],
