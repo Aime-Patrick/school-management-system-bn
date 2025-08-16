@@ -3,7 +3,6 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
   Query,
@@ -362,7 +361,7 @@ export class BooksController {
     return this.transformToResponseDto(book);
   }
 
-  @Patch(':id')
+  @Put(':id')
   @Roles(UserRole.SCHOOL_ADMIN, UserRole.TEACHER, UserRole.LIBRARIAN)
   @ApiOperation({
     summary: 'Update a book',

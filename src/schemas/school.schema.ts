@@ -22,7 +22,7 @@ export class School {
   address: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true }) 
-  schoolAdmin: User;
+  schoolAdmin: Types.ObjectId;
 
   @Prop({ required: true , enum: ["active", "disactive"], default: "active" })
   status : "active" | "disactive"

@@ -70,8 +70,16 @@ export class AuthService {
       } else if (user.role === UserRole.SYSTEM_ADMIN) {
         // System admin: no schoolId needed
         // Do nothing, no schoolId required
+      } else if (user.role === UserRole.LIBRARIAN || user.role === UserRole.ACCOUNTANT) {
+        // For LIBRARIAN and ACCOUNTANT, get school from the user's school field
+        if (user.school) {
+          payload.schoolId = user.school;
+          console.log(`Info: ${user.role} user ${user.username} logging in with school: ${user.school}`);
+        } else {
+          console.log(`Warning: ${user.role} user ${user.username} has no school association`);
+        }
       } else {
-        throw new UnauthorizedException('Invalid user role');
+        throw new UnauthorizedException(`Invalid user role: ${user.role}`);
       }
   
       const token = this.jwtService.sign(payload, {
@@ -95,9 +103,9 @@ export class AuthService {
       throw new NotFoundException('Invalid or expired reset token');
     }
 
-    // Allow only TEACHER or SCHOOL_ADMIN
-    if (![UserRole.TEACHER, UserRole.SCHOOL_ADMIN].includes(user.role as UserRole)) {
-      throw new UnauthorizedException('Only teachers and school admins can reset password');
+    // Allow TEACHER, SCHOOL_ADMIN, LIBRARIAN, and ACCOUNTANT
+    if (![UserRole.TEACHER, UserRole.SCHOOL_ADMIN, UserRole.LIBRARIAN, UserRole.ACCOUNTANT].includes(user.role as UserRole)) {
+      throw new UnauthorizedException('Only teachers, school admins, librarians, and accountants can reset password');
     }
 
     // Hash and update password
@@ -119,8 +127,8 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
-    if (![UserRole.TEACHER, UserRole.SCHOOL_ADMIN].includes(user.role as UserRole)) {
-      throw new UnauthorizedException('Only teachers and school admins can use forgot password');
+    if (![UserRole.TEACHER, UserRole.SCHOOL_ADMIN, UserRole.LIBRARIAN, UserRole.ACCOUNTANT].includes(user.role as UserRole)) {
+      throw new UnauthorizedException('Only teachers, school admins, librarians, and accountants can use forgot password');
     }
 
     let fullName = '';
@@ -130,6 +138,18 @@ export class AuthService {
     } else if (user.role === UserRole.SCHOOL_ADMIN) {
       const school = await this.schoolModel.findOne({ schoolAdmin: user._id });
       fullName = school ? school.schoolName : user.username;
+    } else if (user.role === UserRole.LIBRARIAN || user.role === UserRole.ACCOUNTANT) {
+      // For staff members, try to get school name for better identification
+      if (user.school) {
+        const school = await this.schoolModel.findById(user.school).exec();
+        if (school) {
+          fullName = `${user.username} (${school.schoolName})`;
+        } else {
+          fullName = user.username;
+        }
+      } else {
+        fullName = user.username;
+      }
     }
 
     const resetToken = randomBytes(16).toString('hex');
@@ -144,5 +164,36 @@ export class AuthService {
     );
 
     return { message: 'Reset token sent to your email.' };
+  }
+
+  async getStaffSchoolContext(userId: string): Promise<{ schoolId?: string; schoolName?: string }> {
+    try {
+      // This method helps find the school context for staff members
+      // It can be called after login to get additional school information
+      const user = await this.userModel.findById(userId).exec();
+      if (!user) {
+        return {};
+      }
+
+      if (user.role === UserRole.LIBRARIAN || user.role === UserRole.ACCOUNTANT) {
+        // For staff members, get school context from user.school field
+        if (user.school) {
+          const school = await this.schoolModel.findById(user.school).exec();
+          if (school) {
+            return {
+              schoolId: school._id.toString(),
+              schoolName: school.schoolName
+            };
+          }
+        }
+        console.log(`Info: ${user.role} user ${user.username} has no school association`);
+        return {};
+      }
+
+      return {};
+    } catch (error) {
+      console.error('Error getting staff school context:', error);
+      return {};
+    }
   }
 }

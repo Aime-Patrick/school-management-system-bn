@@ -46,29 +46,11 @@ export class CreateStaffUserDto {
   @IsNotEmpty()
   phoneNumber: string;
 
-  @ApiProperty({ 
-    example: 'John', 
-    description: 'First name of the staff member' 
-  })
-  @IsString()
-  @IsNotEmpty()
-  firstName: string;
+  // Note: firstName and lastName are not stored in the User schema
+  // They are only used for display purposes in the system
 
-  @ApiProperty({ 
-    example: 'Doe', 
-    description: 'Last name of the staff member' 
-  })
-  @IsString()
-  @IsNotEmpty()
-  lastName: string;
-
-  @ApiProperty({ 
-    example: '507f1f77bcf86cd799439011', 
-    description: 'School ID where the staff member will work' 
-  })
-  @IsMongoId()
-  @IsNotEmpty()
-  schoolId: string;
+  // schoolId is automatically determined from the authenticated school admin's school
+  // No need to include it in the request body
 
   @ApiProperty({ 
     example: 'Library Department', 

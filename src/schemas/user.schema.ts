@@ -1,4 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Types } from 'mongoose';
 
 
 export enum UserRole {
@@ -43,6 +44,9 @@ export class User {
 
   @Prop({ required: true, default: false })
   mustChangePassword: boolean;
+
+  @Prop({ type: Types.ObjectId, ref: 'School', required: false })
+  school?: Types.ObjectId; // For LIBRARIAN, ACCOUNTANT, TEACHER - stores school ID
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
