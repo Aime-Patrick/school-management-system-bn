@@ -1,126 +1,66 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNumber, IsBoolean, IsOptional, IsDateString, Min, Max, IsObject, ValidateNested, IsEnum } from 'class-validator';
-import { Type } from 'class-transformer';
+import { FeeStatus, LateFeeRulesDto } from './create-fee-structure.dto';
 
-export enum FeeStatus {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
-  SUSPENDED = 'suspended'
-}
-
-export class LateFeeRulesDto {
+export class FeeStructureResponseDto {
   @ApiProperty({
-    description: 'Grace period in days',
-    example: 10,
-    minimum: 0,
+    description: 'Unique identifier for the fee structure',
+    example: '507f1f77bcf86cd799439011',
   })
-  @IsNumber()
-  @Min(0)
-  gracePeriod: number;
+  _id: string;
 
-  @ApiProperty({
-    description: 'Late fee amount',
-    example: 10,
-    minimum: 0,
-  })
-  @IsNumber()
-  @Min(0)
-  lateFeeAmount: number;
-
-  @ApiProperty({
-    description: 'Late fee percentage',
-    example: 5,
-    minimum: 0,
-    maximum: 100,
-  })
-  @IsNumber()
-  @Min(0)
-  @Max(100)
-  lateFeePercentage: number;
-}
-
-export class CreateFeeStructureDto {
   @ApiProperty({
     description: 'Fee category ID',
     example: '507f1f77bcf86cd799439011',
   })
-  @IsString()
   categoryId: string;
 
   @ApiProperty({
     description: 'Class ID where this fee structure applies',
     example: '507f1f77bcf86cd799439012',
   })
-  @IsString()
   classId: string;
 
   @ApiProperty({
     description: 'Fee amount',
     example: 100,
-    minimum: 0,
   })
-  @IsNumber()
-  @Min(0)
   amount: number;
 
   @ApiProperty({
     description: 'Academic year ID',
     example: '6811eb8c7299d79a4c14de08',
   })
-  @IsString()
   academicYearId: string;
 
   @ApiProperty({
     description: 'Term or semester ID',
     example: '681217c9cebe33b828ee5638',
   })
-  @IsString()
   termId: string;
 
-  // Discount fields for flexible fee reduction
   @ApiProperty({
-    description: 'Discount amount (fixed amount off, e.g., $50 discount). Useful for: sibling discounts, early payment rewards, merit scholarships.',
+    description: 'Discount amount',
     example: 5000,
-    default: 0,
-    minimum: 0,
-    required: false,
   })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
   discountAmount?: number;
 
   @ApiProperty({
-    description: 'Discount percentage (percentage off, e.g., 10% discount). Useful for: bulk payment discounts, staff discounts, seasonal promotions.',
+    description: 'Discount percentage',
     example: 10,
-    default: 0,
-    minimum: 0,
-    maximum: 100,
-    required: false,
   })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Max(100)
   discountPercentage?: number;
 
   @ApiProperty({
     description: 'Status of the fee structure',
     enum: FeeStatus,
     example: FeeStatus.ACTIVE,
-    default: FeeStatus.ACTIVE,
   })
-  @IsOptional()
-  @IsEnum(FeeStatus)
-  status?: FeeStatus;
+  status: FeeStatus;
 
   @ApiProperty({
     description: 'Due date for payment',
     example: '2025-08-20T22:00:00.000Z',
-    required: false,
   })
-  @IsOptional()
-  @IsDateString()
   dueDate?: string;
 
   @ApiProperty({
@@ -132,57 +72,52 @@ export class CreateFeeStructureDto {
       lateFeePercentage: 5
     },
   })
-  @IsOptional()
-  @IsObject()
-  @ValidateNested()
-  @Type(() => LateFeeRulesDto)
   lateFeeRules?: LateFeeRulesDto;
+
+  @ApiProperty({
+    description: 'School ID where this fee structure applies',
+    example: '507f1f77bcf86cd799439011',
+  })
+  school: string;
+
+  @ApiProperty({
+    description: 'Creation timestamp',
+    example: '2024-01-15T10:30:00.000Z',
+  })
+  createdAt: string;
+
+  @ApiProperty({
+    description: 'Last update timestamp',
+    example: '2024-01-15T10:30:00.000Z',
+  })
+  updatedAt: string;
 
   // Legacy fields for backward compatibility
   @ApiProperty({
     description: 'Whether the fee structure is active (deprecated, use status instead)',
     example: true,
-    default: true,
     deprecated: true,
   })
-  @IsOptional()
-  @IsBoolean()
   isActive?: boolean;
 
   @ApiProperty({
     description: 'Late fee amount (deprecated, use lateFeeRules instead)',
     example: 1000,
-    default: 0,
-    minimum: 0,
     deprecated: true,
   })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
   lateFeeAmount?: number;
 
   @ApiProperty({
     description: 'Late fee percentage (deprecated, use lateFeeRules instead)',
     example: 5,
-    default: 0,
-    minimum: 0,
-    maximum: 100,
     deprecated: true,
   })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Max(100)
   lateFeePercentage?: number;
 
   @ApiProperty({
     description: 'Grace period in days (deprecated, use lateFeeRules instead)',
     example: 7,
-    required: false,
     deprecated: true,
   })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
   gracePeriodDays?: number;
 }

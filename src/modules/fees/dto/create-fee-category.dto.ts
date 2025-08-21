@@ -25,12 +25,6 @@ export class CreateFeeCategoryDto {
   @IsEnum(FeeFrequency)
   frequency: FeeFrequency;
 
-  @ApiProperty({
-    description: 'School ID where this fee category applies',
-    example: '507f1f77bcf86cd799439011',
-  })
-  @IsString()
-  school: string;
 
   @ApiProperty({
     description: 'Whether the fee category is active',

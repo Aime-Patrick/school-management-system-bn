@@ -11,11 +11,11 @@ export class FeeCategoryService {
     @InjectModel(FeeCategory.name) private feeCategoryModel: Model<FeeCategory>,
   ) {}
 
-  async create(createFeeCategoryDto: CreateFeeCategoryDto): Promise<FeeCategory> {
+  async create(createFeeCategoryDto: CreateFeeCategoryDto, schoolId: string): Promise<FeeCategory> {
     // Check if fee category with same name already exists in the school
     const existingCategory = await this.feeCategoryModel.findOne({
       name: createFeeCategoryDto.name,
-      school: createFeeCategoryDto.school,
+      school: new Types.ObjectId(schoolId),
     });
 
     if (existingCategory) {
@@ -24,7 +24,7 @@ export class FeeCategoryService {
 
     const feeCategory = new this.feeCategoryModel({
       ...createFeeCategoryDto,
-      school: new Types.ObjectId(createFeeCategoryDto.school),
+      school: new Types.ObjectId(schoolId),
     });
 
     return await feeCategory.save();
@@ -88,16 +88,16 @@ export class FeeCategoryService {
     return feeCategory;
   }
 
-  async update(id: string, updateFeeCategoryDto: Partial<CreateFeeCategoryDto>): Promise<FeeCategory> {
+  async update(id: string, updateFeeCategoryDto: Partial<CreateFeeCategoryDto>, schoolId?: string): Promise<FeeCategory> {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('Invalid fee category ID');
     }
 
     // Check if fee category with same name already exists in the school (excluding current category)
-    if (updateFeeCategoryDto.name) {
+    if (updateFeeCategoryDto.name && schoolId) {
       const existingCategory = await this.feeCategoryModel.findOne({
         name: updateFeeCategoryDto.name,
-        school: updateFeeCategoryDto.school,
+        school: new Types.ObjectId(schoolId),
         _id: { $ne: id },
       });
 
@@ -106,13 +106,15 @@ export class FeeCategoryService {
       }
     }
 
+    const updateData: any = { ...updateFeeCategoryDto };
+    if (schoolId) {
+      updateData.school = new Types.ObjectId(schoolId);
+    }
+
     const feeCategory = await this.feeCategoryModel
       .findByIdAndUpdate(
         id,
-        {
-          ...updateFeeCategoryDto,
-          ...(updateFeeCategoryDto.school && { school: new Types.ObjectId(updateFeeCategoryDto.school) }),
-        },
+        updateData,
         { new: true, runValidators: true }
       )
       .populate('school', 'name')

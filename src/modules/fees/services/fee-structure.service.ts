@@ -1,8 +1,11 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { FeeStructure } from '../../../schemas/fee-structure.schema';
+import { FeeStructure, FeeStatus } from '../../../schemas/fee-structure.schema';
 import { FeeCategory } from '../../../schemas/fee-category.schema';
+import { Class } from '../../../schemas/class.schema';
+import { Academic } from '../../../schemas/academic-year.schema';
+import { Term } from '../../../schemas/terms.schama';
 import { CreateFeeStructureDto } from '../dto/create-fee-structure.dto';
 import { QueryFeeStructuresDto } from '../dto/query-fees.dto';
 
@@ -11,75 +14,127 @@ export class FeeStructureService {
   constructor(
     @InjectModel(FeeStructure.name) private feeStructureModel: Model<FeeStructure>,
     @InjectModel(FeeCategory.name) private feeCategoryModel: Model<FeeCategory>,
+    @InjectModel(Class.name) private classModel: Model<Class>,
+    @InjectModel(Academic.name) private academicModel: Model<Academic>,
+    @InjectModel(Term.name) private termModel: Model<Term>,
   ) {}
 
-  async create(createFeeStructureDto: CreateFeeStructureDto): Promise<FeeStructure> {
+  async create(createFeeStructureDto: CreateFeeStructureDto, schoolId: string): Promise<FeeStructure> {
     // Validate that fee category exists
-    const feeCategory = await this.feeCategoryModel.findById(createFeeStructureDto.feeCategory).exec();
+    const feeCategory = await this.feeCategoryModel.findById(createFeeStructureDto.categoryId).exec();
     if (!feeCategory) {
       throw new BadRequestException('Fee category not found');
     }
 
+    // Validate that class exists
+    if (createFeeStructureDto.classId) {
+      const classExists = await this.classModel.findById(createFeeStructureDto.classId).exec();
+      if (!classExists) {
+        throw new BadRequestException('Class not found');
+      }
+    }
+
+    // Validate that academic year exists
+    const academicYearExists = await this.academicModel.findById(createFeeStructureDto.academicYearId).exec();
+    if (!academicYearExists) {
+      throw new BadRequestException('Academic year not found');
+    }
+
+    // Validate that term exists
+    const termExists = await this.termModel.findById(createFeeStructureDto.termId).exec();
+    if (!termExists) {
+      throw new BadRequestException('Term not found');
+    }
+
     // Check if fee structure already exists for this category, class, academic year, and term
     const existingStructure = await this.feeStructureModel.findOne({
-      feeCategory: createFeeStructureDto.feeCategory,
-      class: createFeeStructureDto.class,
-      academicYear: createFeeStructureDto.academicYear,
-      term: createFeeStructureDto.term,
-      school: createFeeStructureDto.school,
+      categoryId: createFeeStructureDto.categoryId,
+      classId: createFeeStructureDto.classId,
+      academicYearId: createFeeStructureDto.academicYearId,
+      termId: createFeeStructureDto.termId,
+      school: new Types.ObjectId(schoolId),
     });
 
     if (existingStructure) {
       throw new BadRequestException('Fee structure already exists for this category, class, academic year, and term');
     }
 
-    const feeStructure = new this.feeStructureModel({
+    const feeStructureData: any = {
       ...createFeeStructureDto,
-      feeCategory: new Types.ObjectId(createFeeStructureDto.feeCategory),
-      class: new Types.ObjectId(createFeeStructureDto.class),
-      school: new Types.ObjectId(createFeeStructureDto.school),
+      categoryId: new Types.ObjectId(createFeeStructureDto.categoryId),
+      classId: new Types.ObjectId(createFeeStructureDto.classId),
+      academicYearId: new Types.ObjectId(createFeeStructureDto.academicYearId),
+      termId: new Types.ObjectId(createFeeStructureDto.termId),
+      school: new Types.ObjectId(schoolId),
+      status: createFeeStructureDto.status || FeeStatus.ACTIVE,
       dueDate: createFeeStructureDto.dueDate ? new Date(createFeeStructureDto.dueDate) : undefined,
-    });
+    };
 
+    // Handle lateFeeRules if provided
+    if (createFeeStructureDto.lateFeeRules) {
+      feeStructureData.lateFeeRules = createFeeStructureDto.lateFeeRules;
+    }
+
+    // Handle legacy fields for backward compatibility
+    if (createFeeStructureDto.isActive !== undefined) {
+      feeStructureData.isActive = createFeeStructureDto.isActive;
+    }
+    if (createFeeStructureDto.lateFeeAmount !== undefined) {
+      feeStructureData.lateFeeAmount = createFeeStructureDto.lateFeeAmount;
+    }
+    if (createFeeStructureDto.lateFeePercentage !== undefined) {
+      feeStructureData.lateFeePercentage = createFeeStructureDto.lateFeePercentage;
+    }
+    if (createFeeStructureDto.gracePeriodDays !== undefined) {
+      feeStructureData.gracePeriodDays = createFeeStructureDto.gracePeriodDays;
+    }
+
+    const feeStructure = new this.feeStructureModel(feeStructureData);
     return await feeStructure.save();
   }
 
-  async findAll(query: QueryFeeStructuresDto): Promise<{ data: FeeStructure[]; total: number; page: number; limit: number }> {
-    const { page = 1, limit = 10, feeCategory, class: classId, school, academicYear, term, isActive } = query;
+  async findAll(query: QueryFeeStructuresDto, schoolId?: string): Promise<{ data: FeeStructure[]; total: number; page: number; limit: number }> {
+    const { page = 1, limit = 10, categoryId, classId, academicYearId, termId, status, isActive } = query;
     const skip = (page - 1) * limit;
 
     const filter: any = {};
 
-    if (feeCategory) {
-      filter.feeCategory = new Types.ObjectId(feeCategory);
+    // Use schoolId from authenticated user if not specified in query
+    if (schoolId) {
+      filter.school = new Types.ObjectId(schoolId);
+    }
+
+    if (categoryId) {
+      filter.categoryId = new Types.ObjectId(categoryId);
     }
 
     if (classId) {
-      filter.class = new Types.ObjectId(classId);
+      filter.classId = new Types.ObjectId(classId);
     }
 
-    if (school) {
-      filter.school = new Types.ObjectId(school);
+    if (academicYearId) {
+      filter.academicYearId = new Types.ObjectId(academicYearId);
     }
 
-    if (academicYear) {
-      filter.academicYear = academicYear;
+    if (termId) {
+      filter.termId = new Types.ObjectId(termId);
     }
 
-    if (term) {
-      filter.term = term;
-    }
-
-    if (isActive !== undefined) {
+    // Handle both new status and legacy isActive fields
+    if (status !== undefined) {
+      filter.status = status;
+    } else if (isActive !== undefined) {
       filter.isActive = isActive;
     }
 
     const [data, total] = await Promise.all([
       this.feeStructureModel
         .find(filter)
-        .populate('feeCategory', 'name frequency')
-        .populate('class', 'name')
+        .populate('categoryId', 'name frequency')
+        .populate('classId', 'name')
         .populate('school', 'name')
+        .populate('academicYearId', 'name')
+        .populate('termId', 'name')
         .skip(skip)
         .limit(limit)
         .sort({ createdAt: -1 })
@@ -102,9 +157,11 @@ export class FeeStructureService {
 
     const feeStructure = await this.feeStructureModel
       .findById(id)
-      .populate('feeCategory', 'name frequency')
-      .populate('class', 'name')
+      .populate('categoryId', 'name frequency')
+      .populate('classId', 'name')
       .populate('school', 'name')
+      .populate('academicYearId', 'name')
+      .populate('termId', 'name')
       .exec();
 
     if (!feeStructure) {
@@ -114,27 +171,32 @@ export class FeeStructureService {
     return feeStructure;
   }
 
-  async update(id: string, updateFeeStructureDto: Partial<CreateFeeStructureDto>): Promise<FeeStructure> {
+  async update(id: string, updateFeeStructureDto: Partial<CreateFeeStructureDto>, schoolId?: string): Promise<FeeStructure> {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('Invalid fee structure ID');
     }
 
     // Validate that fee category exists if being updated
-    if (updateFeeStructureDto.feeCategory) {
-      const feeCategory = await this.feeCategoryModel.findById(updateFeeStructureDto.feeCategory).exec();
+    if (updateFeeStructureDto.categoryId) {
+      const feeCategory = await this.feeCategoryModel.findById(updateFeeStructureDto.categoryId).exec();
       if (!feeCategory) {
         throw new BadRequestException('Fee category not found');
       }
     }
 
     // Check for duplicate fee structure if key fields are being updated
-    if (updateFeeStructureDto.feeCategory || updateFeeStructureDto.class || updateFeeStructureDto.academicYear || updateFeeStructureDto.term) {
+    if (updateFeeStructureDto.categoryId || updateFeeStructureDto.classId || updateFeeStructureDto.academicYearId || updateFeeStructureDto.termId) {
+      const currentStructure = await this.feeStructureModel.findById(id).exec();
+      if (!currentStructure) {
+        throw new NotFoundException('Fee structure not found');
+      }
+
       const existingStructure = await this.feeStructureModel.findOne({
-        feeCategory: updateFeeStructureDto.feeCategory || (await this.feeStructureModel.findById(id).exec())?.feeCategory,
-        class: updateFeeStructureDto.class || (await this.feeStructureModel.findById(id).exec())?.class,
-        academicYear: updateFeeStructureDto.academicYear || (await this.feeStructureModel.findById(id).exec())?.academicYear,
-        term: updateFeeStructureDto.term || (await this.feeStructureModel.findById(id).exec())?.term,
-        school: updateFeeStructureDto.school || (await this.feeStructureModel.findById(id).exec())?.school,
+        categoryId: updateFeeStructureDto.categoryId || currentStructure.categoryId,
+        classId: updateFeeStructureDto.classId || currentStructure.classId,
+        academicYearId: updateFeeStructureDto.academicYearId || currentStructure.academicYearId,
+        termId: updateFeeStructureDto.termId || currentStructure.termId,
+        school: schoolId ? new Types.ObjectId(schoolId) : currentStructure.school,
         _id: { $ne: id },
       });
 
@@ -145,27 +207,52 @@ export class FeeStructureService {
 
     const updateData: any = { ...updateFeeStructureDto };
     
-    if (updateFeeStructureDto.feeCategory) {
-      updateData.feeCategory = new Types.ObjectId(updateFeeStructureDto.feeCategory);
+    if (updateFeeStructureDto.categoryId) {
+      updateData.categoryId = new Types.ObjectId(updateFeeStructureDto.categoryId);
     }
     
-    if (updateFeeStructureDto.class) {
-      updateData.class = new Types.ObjectId(updateFeeStructureDto.class);
+    if (updateFeeStructureDto.classId) {
+      updateData.classId = new Types.ObjectId(updateFeeStructureDto.classId);
     }
     
-    if (updateFeeStructureDto.school) {
-      updateData.school = new Types.ObjectId(updateFeeStructureDto.school);
+    if (updateFeeStructureDto.academicYearId) {
+      updateData.academicYearId = new Types.ObjectId(updateFeeStructureDto.academicYearId);
+    }
+    
+    if (updateFeeStructureDto.termId) {
+      updateData.termId = new Types.ObjectId(updateFeeStructureDto.termId);
     }
 
     if (updateFeeStructureDto.dueDate) {
       updateData.dueDate = new Date(updateFeeStructureDto.dueDate);
     }
 
+    // Handle lateFeeRules if provided
+    if (updateFeeStructureDto.lateFeeRules) {
+      updateData.lateFeeRules = updateFeeStructureDto.lateFeeRules;
+    }
+
+    // Handle legacy fields for backward compatibility
+    if (updateFeeStructureDto.isActive !== undefined) {
+      updateData.isActive = updateFeeStructureDto.isActive;
+    }
+    if (updateFeeStructureDto.lateFeeAmount !== undefined) {
+      updateData.lateFeeAmount = updateFeeStructureDto.lateFeeAmount;
+    }
+    if (updateFeeStructureDto.lateFeePercentage !== undefined) {
+      updateData.lateFeePercentage = updateFeeStructureDto.lateFeePercentage;
+    }
+    if (updateFeeStructureDto.gracePeriodDays !== undefined) {
+      updateData.gracePeriodDays = updateFeeStructureDto.gracePeriodDays;
+    }
+
     const feeStructure = await this.feeStructureModel
       .findByIdAndUpdate(id, updateData, { new: true, runValidators: true })
-      .populate('feeCategory', 'name frequency')
-      .populate('class', 'name')
+      .populate('categoryId', 'name frequency')
+      .populate('classId', 'name')
       .populate('school', 'name')
+      .populate('academicYearId', 'name')
+      .populate('termId', 'name')
       .exec();
 
     if (!feeStructure) {
@@ -193,27 +280,36 @@ export class FeeStructureService {
     await this.feeStructureModel.findByIdAndDelete(id).exec();
   }
 
-  async findByClassAndYear(classId: string, academicYear: string, term?: string): Promise<FeeStructure[]> {
+  async findByClassAndYear(classId: string, academicYearId: string, termId?: string): Promise<FeeStructure[]> {
     if (!Types.ObjectId.isValid(classId)) {
       throw new BadRequestException('Invalid class ID');
     }
 
+    if (!Types.ObjectId.isValid(academicYearId)) {
+      throw new BadRequestException('Invalid academic year ID');
+    }
+
     const filter: any = {
-      class: new Types.ObjectId(classId),
-      academicYear,
-      isActive: true,
+      classId: new Types.ObjectId(classId),
+      academicYearId: new Types.ObjectId(academicYearId),
+      status: FeeStatus.ACTIVE,
     };
 
-    if (term) {
-      filter.term = term;
+    if (termId) {
+      if (!Types.ObjectId.isValid(termId)) {
+        throw new BadRequestException('Invalid term ID');
+      }
+      filter.termId = new Types.ObjectId(termId);
     }
 
     return await this.feeStructureModel
       .find(filter)
-      .populate('feeCategory', 'name frequency')
-      .populate('class', 'name')
+      .populate('categoryId', 'name frequency')
+      .populate('classId', 'name')
       .populate('school', 'name')
-      .sort({ 'feeCategory.name': 1 })
+      .populate('academicYearId', 'name')
+      .populate('termId', 'name')
+      .sort({ 'categoryId.name': 1 })
       .exec();
   }
 
@@ -223,16 +319,18 @@ export class FeeStructureService {
     }
 
     return await this.feeStructureModel
-      .find({ school: new Types.ObjectId(schoolId), isActive: true })
-      .populate('feeCategory', 'name frequency')
-      .populate('class', 'name')
+      .find({ school: new Types.ObjectId(schoolId), status: FeeStatus.ACTIVE })
+      .populate('categoryId', 'name frequency')
+      .populate('classId', 'name')
       .populate('school', 'name')
-      .sort({ academicYear: -1, term: 1, 'feeCategory.name': 1 })
+      .populate('academicYearId', 'name')
+      .populate('termId', 'name')
+      .sort({ 'academicYearId.name': -1, 'termId.name': 1, 'categoryId.name': 1 })
       .exec();
   }
 
-  async calculateTotalFees(classId: string, academicYear: string, term?: string): Promise<number> {
-    const feeStructures = await this.findByClassAndYear(classId, academicYear, term);
+  async calculateTotalFees(classId: string, academicYearId: string, termId?: string): Promise<number> {
+    const feeStructures = await this.findByClassAndYear(classId, academicYearId, termId);
     
     return feeStructures.reduce((total, structure) => {
       const discountAmount = structure.discountAmount || 0;

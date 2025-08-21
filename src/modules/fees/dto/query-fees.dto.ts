@@ -76,7 +76,7 @@ export class QueryFeeStructuresDto extends PaginationDto {
   })
   @IsOptional()
   @IsString()
-  feeCategory?: string;
+  categoryId?: string;
 
   @ApiProperty({
     description: 'Filter by class ID',
@@ -85,7 +85,7 @@ export class QueryFeeStructuresDto extends PaginationDto {
   })
   @IsOptional()
   @IsString()
-  class?: string;
+  classId?: string;
 
   @ApiProperty({
     description: 'Filter by school ID',
@@ -97,31 +97,83 @@ export class QueryFeeStructuresDto extends PaginationDto {
   school?: string;
 
   @ApiProperty({
-    description: 'Filter by academic year',
+    description: 'Filter by academic year ID',
+    example: '6811eb8c7299d79a4c14de08',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  academicYearId?: string;
+
+  @ApiProperty({
+    description: 'Filter by term ID',
+    example: '681217c9cebe33b828ee5638',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  termId?: string;
+
+  @ApiProperty({
+    description: 'Filter by status',
+    enum: ['active', 'inactive', 'suspended'],
+    example: 'active',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @ApiProperty({
+    description: 'Filter by active status (legacy, use status instead)',
+    example: true,
+    required: false,
+    deprecated: true,
+  })
+  @IsOptional()
+  @Transform(({ value }) => value === 'true')
+  isActive?: boolean;
+
+  // Legacy field names for backward compatibility
+  @ApiProperty({
+    description: 'Filter by fee category ID (legacy, use categoryId instead)',
+    example: '507f1f77bcf86cd799439011',
+    required: false,
+    deprecated: true,
+  })
+  @IsOptional()
+  @IsString()
+  feeCategory?: string;
+
+  @ApiProperty({
+    description: 'Filter by class ID (legacy, use classId instead)',
+    example: '507f1f77bcf86cd799439012',
+    required: false,
+    deprecated: true,
+  })
+  @IsOptional()
+  @IsString()
+  class?: string;
+
+  @ApiProperty({
+    description: 'Filter by academic year (legacy, use academicYearId instead)',
     example: '2024-2025',
     required: false,
+    deprecated: true,
   })
   @IsOptional()
   @IsString()
   academicYear?: string;
 
   @ApiProperty({
-    description: 'Filter by term',
+    description: 'Filter by term (legacy, use termId instead)',
     example: 'First Term',
     required: false,
+    deprecated: true,
   })
   @IsOptional()
   @IsString()
   term?: string;
-
-  @ApiProperty({
-    description: 'Filter by active status',
-    example: true,
-    required: false,
-  })
-  @IsOptional()
-  @Transform(({ value }) => value === 'true')
-  isActive?: boolean;
 }
 
 export class QueryFeeAssignmentsDto extends PaginationDto {

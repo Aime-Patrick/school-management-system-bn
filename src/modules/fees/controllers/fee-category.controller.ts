@@ -9,6 +9,8 @@ import {
   Query,
   UseGuards,
   HttpStatus,
+  Req,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -62,7 +64,7 @@ export class FeeCategoryController {
   })
   @ApiBody({
     type: CreateFeeCategoryDto,
-    description: 'Fee category creation data',
+    description: 'Fee category creation data (school ID is automatically derived from authenticated user)',
     examples: {
       tuition: {
         summary: 'Tuition Fee Category',
@@ -70,7 +72,6 @@ export class FeeCategoryController {
           name: 'Tuition Fee',
           description: 'Monthly tuition fee for academic classes',
           frequency: 'monthly',
-          school: '507f1f77bcf86cd799439011',
           isActive: true,
           isCustom: false,
         },
@@ -81,7 +82,6 @@ export class FeeCategoryController {
           name: 'Transport Fee',
           description: 'Monthly transportation fee for students using school transport',
           frequency: 'monthly',
-          school: '507f1f77bcf86cd799439011',
           isActive: true,
           isCustom: false,
         },
@@ -105,8 +105,12 @@ export class FeeCategoryController {
     status: HttpStatus.FORBIDDEN,
     description: 'Forbidden - insufficient permissions',
   })
-  async create(@Body() createFeeCategoryDto: CreateFeeCategoryDto): Promise<FeeCategoryResponseDto> {
-    const feeCategory = await this.feeCategoryService.create(createFeeCategoryDto);
+  async create(@Body() createFeeCategoryDto: CreateFeeCategoryDto, @Req() req): Promise<FeeCategoryResponseDto> {
+    const schoolId = req.user.schoolId;
+    if (!schoolId) {
+      throw new BadRequestException('School ID not found in user context');
+    }
+    const feeCategory = await this.feeCategoryService.create(createFeeCategoryDto, schoolId);
     return this.transformToResponseDto(feeCategory);
   }
 
@@ -177,14 +181,18 @@ export class FeeCategoryController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Unauthorized - invalid or missing authentication token',
   })
-  async findAll(@Query() query: QueryFeeCategoriesDto) {
+  async findAll(@Query() query: QueryFeeCategoriesDto, @Req() req) {
+    // If no school is specified in query, use the authenticated user's school
+    if (!query.school && req.user.schoolId) {
+      query.school = req.user.schoolId;
+    }
     return await this.feeCategoryService.findAll(query);
   }
 
   @Get('school/:schoolId')
   @ApiOperation({
     summary: 'Get fee categories by school',
-    description: 'Retrieves all active fee categories for a specific school.',
+    description: 'Retrieves all active fee categories for a specific school. Users can only access their own school\'s categories.',
   })
   @ApiParam({
     name: 'schoolId',
@@ -204,7 +212,15 @@ export class FeeCategoryController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Unauthorized - invalid or missing authentication token',
   })
-  async findBySchool(@Param('schoolId') schoolId: string): Promise<FeeCategoryResponseDto[]> {
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Forbidden - cannot access categories from other schools',
+  })
+  async findBySchool(@Param('schoolId') schoolId: string, @Req() req): Promise<FeeCategoryResponseDto[]> {
+    // Ensure users can only access their own school's categories
+    if (req.user.schoolId && req.user.schoolId !== schoolId) {
+      throw new BadRequestException('You can only access fee categories from your own school');
+    }
     const feeCategories = await this.feeCategoryService.findBySchool(schoolId);
     return this.transformToResponseDtoArray(feeCategories);
   }
@@ -314,8 +330,10 @@ export class FeeCategoryController {
   async update(
     @Param('id') id: string,
     @Body() updateFeeCategoryDto: Partial<CreateFeeCategoryDto>,
+    @Req() req,
   ): Promise<FeeCategoryResponseDto> {
-    const feeCategory = await this.feeCategoryService.update(id, updateFeeCategoryDto);
+    const schoolId = req.user.schoolId;
+    const feeCategory = await this.feeCategoryService.update(id, updateFeeCategoryDto, schoolId);
     return this.transformToResponseDto(feeCategory);
   }
 

@@ -9,6 +9,8 @@ import {
   Query,
   UseGuards,
   HttpStatus,
+  Req,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -42,34 +44,40 @@ export class FeeStructureController {
   })
   @ApiBody({
     type: CreateFeeStructureDto,
-    description: 'Fee structure creation data',
+    description: 'Fee structure creation data (school ID is automatically derived from authenticated user)',
     examples: {
       tuitionStructure: {
         summary: 'Tuition Fee Structure',
         value: {
-          feeCategory: '507f1f77bcf86cd799439011',
-          class: '507f1f77bcf86cd799439012',
-          school: '507f1f77bcf86cd799439013',
-          amount: 50000,
-          academicYear: '2024-2025',
-          term: 'First Term',
-          dueDate: '2024-12-31T23:59:59.000Z',
-          lateFeeAmount: 1000,
-          lateFeePercentage: 5,
+          categoryId: '68a65d72955e62c78b5c5955',
+          classId: '6859ecff3c8c7943bbaadd15',
+          amount: 100,
+          academicYearId: '6811eb8c7299d79a4c14de08',
+          termId: '681217c9cebe33b828ee5638',
+          dueDate: '2025-08-20T22:00:00.000Z',
+          status: 'active',
+          lateFeeRules: {
+            gracePeriod: 10,
+            lateFeeAmount: 10,
+            lateFeePercentage: 5
+          },
         },
       },
       transportStructure: {
         summary: 'Transport Fee Structure',
         value: {
-          feeCategory: '507f1f77bcf86cd799439014',
-          class: '507f1f77bcf86cd799439012',
-          school: '507f1f77bcf86cd799439013',
-          amount: 15000,
-          academicYear: '2024-2025',
-          term: 'First Term',
-          dueDate: '2024-12-31T23:59:59.000Z',
-          lateFeeAmount: 500,
-          lateFeePercentage: 3,
+          categoryId: '68a65d72955e62c78b5c5956',
+          classId: '6859ecff3c8c7943bbaadd15',
+          amount: 50,
+          academicYearId: '6811eb8c7299d79a4c14de08',
+          termId: '681217c9cebe33b828ee5638',
+          dueDate: '2025-08-20T22:00:00.000Z',
+          status: 'active',
+          lateFeeRules: {
+            gracePeriod: 5,
+            lateFeeAmount: 5,
+            lateFeePercentage: 3
+          },
         },
       },
     },
@@ -90,8 +98,12 @@ export class FeeStructureController {
     status: HttpStatus.FORBIDDEN,
     description: 'Forbidden - insufficient permissions',
   })
-  async create(@Body() createFeeStructureDto: CreateFeeStructureDto) {
-    return await this.feeStructureService.create(createFeeStructureDto);
+  async create(@Body() createFeeStructureDto: CreateFeeStructureDto, @Req() req) {
+    const schoolId = req.user.schoolId;
+    if (!schoolId) {
+      throw new BadRequestException('School ID not found in user context');
+    }
+    return await this.feeStructureService.create(createFeeStructureDto, schoolId);
   }
 
   @Get()
@@ -114,46 +126,48 @@ export class FeeStructureController {
     example: 10,
   })
   @ApiQuery({
-    name: 'feeCategory',
+    name: 'categoryId',
     required: false,
     type: String,
     description: 'Filter by fee category ID',
-    example: '507f1f77bcf86cd799439011',
+    example: '68a65d72955e62c78b5c5955',
   })
   @ApiQuery({
-    name: 'class',
+    name: 'classId',
     required: false,
     type: String,
     description: 'Filter by class ID',
-    example: '507f1f77bcf86cd799439012',
+    example: '6859ecff3c8c7943bbaadd15',
   })
   @ApiQuery({
-    name: 'school',
+    name: 'academicYearId',
     required: false,
     type: String,
-    description: 'Filter by school ID',
-    example: '507f1f77bcf86cd799439013',
+    description: 'Filter by academic year ID',
+    example: '6811eb8c7299d79a4c14de08',
   })
   @ApiQuery({
-    name: 'academicYear',
+    name: 'termId',
     required: false,
     type: String,
-    description: 'Filter by academic year',
-    example: '2024-2025',
+    description: 'Filter by term ID',
+    example: '681217c9cebe33b828ee5638',
   })
   @ApiQuery({
-    name: 'term',
+    name: 'status',
     required: false,
     type: String,
-    description: 'Filter by term',
-    example: 'First Term',
+    description: 'Filter by status',
+    example: 'active',
+    enum: ['active', 'inactive', 'suspended'],
   })
   @ApiQuery({
     name: 'isActive',
     required: false,
     type: Boolean,
-    description: 'Filter by active status',
+    description: 'Filter by active status (legacy, use status instead)',
     example: true,
+    deprecated: true,
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -175,8 +189,10 @@ export class FeeStructureController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Unauthorized - invalid or missing authentication token',
   })
-  async findAll(@Query() query: QueryFeeStructuresDto) {
-    return await this.feeStructureService.findAll(query);
+  async findAll(@Query() query: QueryFeeStructuresDto, @Req() req) {
+    // If no school is specified in query, use the authenticated user's school
+    const schoolId = req.user.schoolId;
+    return await this.feeStructureService.findAll(query, schoolId);
   }
 
   @Get('class/:classId')
@@ -190,18 +206,18 @@ export class FeeStructureController {
     example: '507f1f77bcf86cd799439012',
   })
   @ApiQuery({
-    name: 'academicYear',
+    name: 'academicYearId',
     required: false,
     type: String,
-    description: 'Filter by academic year',
-    example: '2024-2025',
+    description: 'Filter by academic year ID',
+    example: '6811eb8c7299d79a4c14de08',
   })
   @ApiQuery({
-    name: 'term',
+    name: 'termId',
     required: false,
     type: String,
-    description: 'Filter by term',
-    example: 'First Term',
+    description: 'Filter by term ID',
+    example: '681217c9cebe33b828ee5638',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -218,10 +234,10 @@ export class FeeStructureController {
   })
   async findByClass(
     @Param('classId') classId: string,
-    @Query('academicYear') academicYear?: string,
-    @Query('term') term?: string,
+    @Query('academicYearId') academicYearId?: string,
+    @Query('termId') termId?: string,
   ) {
-    return await this.feeStructureService.findByClassAndYear(classId, academicYear || '', term || '');
+    return await this.feeStructureService.findByClassAndYear(classId, academicYearId || '', termId || '');
   }
 
   @Get('school/:schoolId')
@@ -262,18 +278,18 @@ export class FeeStructureController {
     example: '507f1f77bcf86cd799439012',
   })
   @ApiQuery({
-    name: 'academicYear',
+    name: 'academicYearId',
     required: true,
     type: String,
-    description: 'Academic year',
-    example: '2024-2025',
+    description: 'Academic year ID',
+    example: '6811eb8c7299d79a4c14de08',
   })
   @ApiQuery({
-    name: 'term',
+    name: 'termId',
     required: false,
     type: String,
-    description: 'Term or semester',
-    example: 'First Term',
+    description: 'Term or semester ID',
+    example: '681217c9cebe33b828ee5638',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -296,10 +312,10 @@ export class FeeStructureController {
   })
   async calculateTotalFees(
     @Param('classId') classId: string,
-    @Query('academicYear') academicYear: string,
-    @Query('term') term?: string,
+    @Query('academicYearId') academicYearId: string,
+    @Query('termId') termId?: string,
   ) {
-    const totalAmount = await this.feeStructureService.calculateTotalFees(classId, academicYear, term);
+    const totalAmount = await this.feeStructureService.calculateTotalFees(classId, academicYearId, termId);
     return {
       totalAmount,
       message: 'Total fees calculated successfully',
@@ -354,15 +370,19 @@ export class FeeStructureController {
       updateAmount: {
         summary: 'Update Fee Amount',
         value: {
-          amount: 55000,
-          lateFeeAmount: 1500,
+          amount: 150,
+          lateFeeRules: {
+            gracePeriod: 15,
+            lateFeeAmount: 15,
+            lateFeePercentage: 7
+          },
         },
       },
       updateDueDate: {
         summary: 'Update Due Date',
         value: {
           dueDate: '2025-01-15T23:59:59.000Z',
-          gracePeriodDays: 10,
+          status: 'inactive',
         },
       },
     },
@@ -390,8 +410,10 @@ export class FeeStructureController {
   async update(
     @Param('id') id: string,
     @Body() updateFeeStructureDto: Partial<CreateFeeStructureDto>,
+    @Req() req,
   ) {
-    return await this.feeStructureService.update(id, updateFeeStructureDto);
+    const schoolId = req.user.schoolId;
+    return await this.feeStructureService.update(id, updateFeeStructureDto, schoolId);
   }
 
   @Delete(':id')

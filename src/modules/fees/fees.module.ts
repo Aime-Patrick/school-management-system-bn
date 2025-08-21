@@ -10,6 +10,8 @@ import { Student, StudentSchema } from '../../schemas/student.schema';
 import { Class, ClassSchema } from '../../schemas/class.schema';
 import { School, SchoolSchema } from '../../schemas/school.schema';
 import { User, UserSchema } from '../../schemas/user.schema';
+import { Academic, AcademicSchema } from '../../schemas/academic-year.schema';
+import { Term, TermSchema } from '../../schemas/terms.schama';
 
 // Services
 import { FeeCategoryService } from './services/fee-category.service';
@@ -38,6 +40,8 @@ import { ReportsController } from './controllers/reports.controller';
       { name: Class.name, schema: ClassSchema },
       { name: School.name, schema: SchoolSchema },
       { name: User.name, schema: UserSchema },
+      { name: Academic.name, schema: AcademicSchema },
+      { name: Term.name, schema: TermSchema },
     ]),
   ],
   controllers: [
