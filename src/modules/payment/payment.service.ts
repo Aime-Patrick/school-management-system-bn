@@ -12,7 +12,7 @@ export class PaymentService {
 
     async recordPayment(dto: RecordPaymentDto): Promise<{ message: string; payment: Payment }> {
         try {
-          const payment = await this.paymentModel.create({ dto });
+          const payment = await this.paymentModel.create(dto);
           return { message: "Payment recorded successfully", payment };
         } catch (error) {
           throw error;

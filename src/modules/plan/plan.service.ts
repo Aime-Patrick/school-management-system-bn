@@ -155,6 +155,15 @@ export class PlanService {
               default:
                 throw new BadRequestException('Invalid payment plan.');
             }
+
+            // Find the subscription plan based on the payment plan type
+            const subscriptionPlanDoc = await this.subscriptionModel.findOne({
+              planType: payment.plan
+            });
+
+            if (!subscriptionPlanDoc) {
+              throw new NotFoundException(`Subscription plan for ${payment.plan} not found.`);
+            }
       
             await this.schoolnModel.findByIdAndUpdate(
               schoolId,
@@ -162,7 +171,7 @@ export class PlanService {
                 $set: {
                   subscriptionStart: now,
                   subscriptionEnd: endDate,
-                  subscriptionPlan: payment.plan,
+                  subscriptionPlan: subscriptionPlanDoc._id,
                   isActive: true,
                 },
               },

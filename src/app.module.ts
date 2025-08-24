@@ -24,6 +24,7 @@ import { AcademicModule } from './modules/academic/academic.module';
 import { StudentPaymentModule } from './modules/student-payment/student-payment.module';
 import { FeesModule } from './modules/fees/fees.module';
 import { LibraryModule } from './modules/library/library.module';
+import { PermissionsModule } from './modules/permissions/permissions.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ load: [databaseConfig] }),
@@ -54,7 +55,8 @@ import { LibraryModule } from './modules/library/library.module';
     AcademicModule,
     StudentPaymentModule,
     FeesModule,
-    LibraryModule
+    LibraryModule,
+    PermissionsModule
   ],
   controllers: [AppController],
   providers: [],

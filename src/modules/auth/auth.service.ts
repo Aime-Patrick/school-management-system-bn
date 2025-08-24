@@ -57,29 +57,19 @@ export class AuthService {
         joinedAt: user['createdAt'],
       };
   
-      // Inject schoolId based on role
-      if (user.role === UserRole.TEACHER) {
-        const teacher = await this.teacherModel.findOne({ 'accountCredentails': user._id });
-        if (teacher) payload.schoolId = teacher.school.toString();
-      } else if (user.role === UserRole.STUDENT) {
-        const student = await this.studentModel.findOne({ 'accountCredentails._id': user._id });
-        if (student) payload.schoolId = student.school.toString();
-      } else if (user.role === UserRole.SCHOOL_ADMIN) {
-        const admin = await this.schoolModel.findOne({ schoolAdmin: user._id.toString() });
-        if (admin) payload.schoolId = admin._id.toString();
-      } else if (user.role === UserRole.SYSTEM_ADMIN) {
+      // Standardized schoolId assignment - all users get school from User.school field
+      if (user.role === UserRole.SYSTEM_ADMIN) {
         // System admin: no schoolId needed
         // Do nothing, no schoolId required
-      } else if (user.role === UserRole.LIBRARIAN || user.role === UserRole.ACCOUNTANT) {
-        // For LIBRARIAN and ACCOUNTANT, get school from the user's school field
+      } else {
+        // All other roles should have school assignment
         if (user.school) {
-          payload.schoolId = user.school;
+          payload.schoolId = user.school.toString();
           console.log(`Info: ${user.role} user ${user.username} logging in with school: ${user.school}`);
         } else {
           console.log(`Warning: ${user.role} user ${user.username} has no school association`);
+          // Don't throw error here, let the application handle missing school
         }
-      } else {
-        throw new UnauthorizedException(`Invalid user role: ${user.role}`);
       }
   
       const token = this.jwtService.sign(payload, {

@@ -7,7 +7,6 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from 'src/guard/jwt-auth.guard';
 import { RolesGuard } from 'src/guard/roles.guard';
 import { Roles } from 'src/decorator/roles.decorator';
-import { CreateStudentDto } from '../students/dto/create-student.dto';
 
 @ApiTags('users')
 @Controller('users')
@@ -69,93 +68,6 @@ export class UsersController {
         }
     }
 
-    @Post('fix-school-associations')
-    @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('school-admin')
-    @ApiOperation({ 
-        summary: 'Fix school associations', 
-        description: 'Fix staff users that don\'t have proper school associations. This will assign all unassigned staff to your school.' 
-    })
-    @ApiResponse({ status: 200, description: 'School associations fixed successfully' })
-    @ApiResponse({ status: 400, description: 'Bad request - school not found' })
-    async fixSchoolAssociations(@Req() req: any) {
-        try {
-            const schoolAdminId = req.user.id;
-            return await this.usersService.fixUserSchoolAssociations(schoolAdminId);
-        } catch (error) {
-            console.error('Error fixing school associations:', error);
-            throw new BadRequestException(error.message || 'Failed to fix school associations');
-        }
-    }
-
-    @Get('debug/school-info')
-    @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('school-admin')
-    @ApiOperation({ 
-        summary: 'Debug school information', 
-        description: 'Debug endpoint to check school-admin relationship (development only)' 
-    })
-    async debugSchoolInfo(@Req() req: any) {
-        try {
-            const schoolAdminId = req.user.id;
-            console.log('Debug: School admin ID:', schoolAdminId);
-            
-            // Get all schools to see the structure
-            const allSchools = await this.usersService['schoolModel'].find().exec();
-            const adminUser = await this.usersService['userModel'].findById(schoolAdminId).exec();
-            
-            return {
-                adminUser: {
-                    id: adminUser?._id,
-                    username: adminUser?.username,
-                    role: adminUser?.role,
-                    email: adminUser?.email
-                },
-                allSchools: allSchools.map(s => ({
-                    id: s._id,
-                    name: s.schoolName,
-                    admin: s.schoolAdmin,
-                    adminType: typeof s.schoolAdmin
-                })),
-                message: 'Debug information retrieved'
-            };
-        } catch (error) {
-            console.error('Error in debug endpoint:', error);
-            return { error: error.message };
-        }
-    }
-
-    @Post('debug/create-school')
-    @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('school-admin')
-    @ApiOperation({ 
-        summary: 'Create test school', 
-        description: 'Debug endpoint to create a test school for the admin (development only)' 
-    })
-    async createTestSchool(@Req() req: any) {
-        try {
-            const schoolAdminId = req.user.id;
-            console.log('Creating test school for admin:', schoolAdminId);
-            
-            const newSchool = await this.usersService.createTestSchoolForAdmin(schoolAdminId);
-            
-            return {
-                message: 'Test school created successfully',
-                school: {
-                    id: newSchool._id,
-                    name: newSchool.schoolName,
-                    code: newSchool.schoolCode,
-                    admin: newSchool.schoolAdmin
-                }
-            };
-        } catch (error) {
-            console.error('Error creating test school:', error);
-            return { error: error.message };
-        }
-    }
 
     @Post('school-admin')
     @ApiBearerAuth()

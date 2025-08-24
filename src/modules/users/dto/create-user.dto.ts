@@ -1,4 +1,4 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsString, IsStrongPassword } from 'class-validator';
+import { IsEmail, IsEnum, IsNotEmpty, IsString, IsStrongPassword, IsOptional, IsMongoId } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateUserDto {
@@ -25,4 +25,12 @@ export class CreateUserDto {
   @IsNotEmpty()
   phoneNumber: string;
 
+  @ApiProperty({ 
+    example: '507f1f77bcf86cd799439011', 
+    description: 'School ID for the user (optional for system-admin)',
+    required: false
+  })
+  @IsOptional()
+  @IsMongoId()
+  schoolId?: string;
 }

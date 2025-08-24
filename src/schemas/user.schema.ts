@@ -45,8 +45,24 @@ export class User {
   @Prop({ required: true, default: false })
   mustChangePassword: boolean;
 
-  @Prop({ type: Types.ObjectId, ref: 'School', required: false })
-  school?: Types.ObjectId; // For LIBRARIAN, ACCOUNTANT, TEACHER - stores school ID
+  @Prop({ 
+    type: Types.ObjectId, 
+    ref: 'School', 
+    required: function() {
+      return this.role !== UserRole.SYSTEM_ADMIN;
+    },
+    validate: {
+      validator: function(school: any) {
+        // System admin can be school-less, others must have school
+        if (this.role === UserRole.SYSTEM_ADMIN) {
+          return true;
+        }
+        return school != null;
+      },
+      message: 'School is required for all users except system-admin'
+    }
+  })
+  school?: Types.ObjectId; // School assignment for all users except system-admin
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

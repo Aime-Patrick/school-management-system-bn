@@ -11,7 +11,7 @@ import { HashService } from 'src/utils/utils.service';
 import { SubscriptionGuard } from 'src/guard/plan/plan.guard';
 
 @ApiTags('school')
-@UseGuards(JwtAuthGuard, RolesGuard, SubscriptionGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('school')
 export class SchoolController {
     constructor(private readonly schoolService: SchoolService,
@@ -20,27 +20,23 @@ export class SchoolController {
 
     @Post()
     @ApiBearerAuth()
-    @Roles(UserRole.SCHOOL_ADMIN)
+    @Roles(UserRole.SCHOOL_ADMIN, UserRole.SYSTEM_ADMIN)
     @UseInterceptors(FileInterceptor('schoolLogo'))
     @ApiConsumes('multipart/form-data')
-    @ApiOperation({ summary: 'Create school', description: 'Create a new school record.' })
-    async createSchool(@Body() createSchoolDto: CreateSchoolDto,@UploadedFiles() files: Express.Multer.File[], @Req() req) {
+    @ApiOperation({ summary: 'Create school', description: 'Create a new school record. System admin can create schools for any admin, school admin can create their own school.' })
+    async createSchool(@Body() createSchoolDto: CreateSchoolDto, @UploadedFile() file: Express.Multer.File, @Req() req) {
         try {
-            if (!files || files.length === 0) {
+            if (!file) {
               throw new BadRequestException(
-                'No files received. Make sure you are uploading at least one file.',
+                'No file received. Make sure you are uploading a school logo.',
               );
             }
         
             const schoolAdmin = req.user.id;
         
-            const uploadedFiles: any[] = [];
-            for (const file of files) {
-              const uploadedFile  = await this.hashService.uploadFileToCloudinary(file);
-              uploadedFiles.push(uploadedFile);
-            }
+            const uploadedFile = await this.hashService.uploadFileToCloudinary(file);
         
-            return await this.schoolService.createSchool(createSchoolDto, schoolAdmin, uploadedFiles[0].url);
+            return await this.schoolService.createSchool(createSchoolDto, schoolAdmin, uploadedFile.url);
         } catch (error) {
             throw error;
         }
@@ -48,6 +44,7 @@ export class SchoolController {
 
     @Get('school-admin')
     @ApiBearerAuth()
+    @UseGuards(SubscriptionGuard)
     @Roles(UserRole.SCHOOL_ADMIN)
     @ApiOperation({ summary: 'check if school has registered a school' })
     async isSchoolAdminHasSchool(@Req() req) {
@@ -61,8 +58,9 @@ export class SchoolController {
 
     @Put(':schoolId')
     @ApiBearerAuth()
-    @Roles(UserRole.SCHOOL_ADMIN)
-    @ApiOperation({ summary: 'Update school', description: 'Update a school record by its ID.' })
+    @UseGuards(SubscriptionGuard)
+    @Roles(UserRole.SCHOOL_ADMIN, UserRole.SYSTEM_ADMIN)
+    @ApiOperation({ summary: 'Update school', description: 'Update a school record by its ID. System admin can update any school, school admin can update their own school.' })
     async updateSchool( @Body() createSchoolDto: CreateSchoolDto, @Req() req) {
         try {
             const schoolAdmin = req.user.id;
@@ -75,8 +73,8 @@ export class SchoolController {
 
     @Delete(':schoolId')
     @ApiBearerAuth()
-    @Roles(UserRole.SCHOOL_ADMIN)
-    @ApiOperation({ summary: 'Delete school', description: 'Delete a school record by its ID.' })
+    @Roles(UserRole.SYSTEM_ADMIN)
+    @ApiOperation({ summary: 'Delete school', description: 'Delete a school record by its ID. Only system admin can delete schools.' })
     async deleteSchool(@Param('schoolId') schoolId: string, @Req() req) {
         try {
             return await this.schoolService.deleteSchool(schoolId);
@@ -105,6 +103,7 @@ export class SchoolController {
 
     @Patch('reset-teacher-password/:teacherUserId')
     @ApiBearerAuth()
+    @UseGuards(SubscriptionGuard)
     @Roles(UserRole.SCHOOL_ADMIN)
     @ApiOperation({ summary: 'Reset a teacher\'s password and email it to them' })
     async resetTeacherPassword(
@@ -113,5 +112,97 @@ export class SchoolController {
     ) {
       const schoolAdminId = req.user.id;
       return this.schoolService.resetTeacherPassword(teacherUserId, schoolAdminId);
+    }
+
+    // School Status Management Endpoints
+
+    @Patch(':schoolId/suspend')
+    @ApiBearerAuth()
+    @UseGuards(SubscriptionGuard)
+    @Roles(UserRole.SYSTEM_ADMIN)
+    @ApiOperation({ 
+        summary: 'Suspend school', 
+        description: 'Suspend a school (set status to disactive). Only system admin can suspend schools.' 
+    })
+    @ApiResponse({ status: 200, description: 'School suspended successfully' })
+    @ApiResponse({ status: 404, description: 'School not found' })
+    async suspendSchool(
+        @Param('schoolId') schoolId: string,
+        @Body() body: { reason?: string },
+        @Req() req
+    ) {
+        try {
+            const suspendedSchool = await this.schoolService.suspendSchool(schoolId, body.reason, req.user.id);
+            
+            return {
+                message: 'School suspended successfully',
+                school: suspendedSchool,
+                reason: body.reason,
+                changedBy: req.user.username
+            };
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    @Patch(':schoolId/activate')
+    @ApiBearerAuth()
+    @UseGuards(SubscriptionGuard)
+    @Roles(UserRole.SYSTEM_ADMIN)
+    @ApiOperation({ 
+        summary: 'Activate school', 
+        description: 'Activate a school (set status to active). Only system admin can activate schools.' 
+    })
+    @ApiResponse({ status: 200, description: 'School activated successfully' })
+    @ApiResponse({ status: 404, description: 'School not found' })
+    async activateSchool(
+        @Param('schoolId') schoolId: string,
+        @Body() body: { reason?: string },
+        @Req() req
+    ) {
+        try {
+            const activatedSchool = await this.schoolService.activateSchool(schoolId, body.reason, req.user.id);
+            
+            return {
+                message: 'School activated successfully',
+                school: activatedSchool,
+                reason: body.reason,
+                changedBy: req.user.username
+            };
+        } catch (error) {
+            throw error;
+        }
+    }
+
+
+
+    @Get(':schoolId/status')
+    @ApiBearerAuth()
+    @UseGuards(SubscriptionGuard)
+    @Roles(UserRole.SYSTEM_ADMIN, UserRole.SCHOOL_ADMIN)
+    @ApiOperation({ 
+        summary: 'Check school status', 
+        description: 'Check if a school is active. System admin can check any school, school admin can check their own school.' 
+    })
+    @ApiResponse({ status: 200, description: 'School status retrieved successfully' })
+    @ApiResponse({ status: 404, description: 'School not found' })
+    async checkSchoolStatus(@Param('schoolId') schoolId: string, @Req() req) {
+        try {
+            const isActive = await this.schoolService.isSchoolActive(schoolId);
+            const school = await this.schoolService.findSchoolById(schoolId);
+            
+            return {
+                schoolId: schoolId,
+                schoolName: school.schoolName,
+                status: school.status,
+                isActive: isActive,
+                statusReason: school.statusReason,
+                statusChangedAt: school.statusChangedAt,
+                statusChangedBy: school.statusChangedBy,
+                message: isActive ? 'School is active' : 'School is suspended'
+            };
+        } catch (error) {
+            throw error;
+        }
     }
 }

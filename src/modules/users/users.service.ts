@@ -17,10 +17,22 @@ export class UsersService {
         private mailService: MailService
     ) {}
     
-    async addSchoolAdmin(userData:CreateUserDto): Promise<User> {
-        const hashedPassword = await this.hashUtils.hashPassword(userData.password)
-        const newUser = new this.userModel({...userData,password:hashedPassword, role: UserRole.SCHOOL_ADMIN});
-        await this.mailService.sendAccountInfoEmail(userData.email,userData.username, userData.password,UserRole.SCHOOL_ADMIN)
+    async addSchoolAdmin(userData: CreateUserDto): Promise<User> {
+        const hashedPassword = await this.hashUtils.hashPassword(userData.password);
+        
+        // School admin should have school assigned
+        if (!userData.schoolId) {
+            throw new BadRequestException('School ID is required for school admin');
+        }
+        
+        const newUser = new this.userModel({
+            ...userData,
+            password: hashedPassword,
+            role: UserRole.SCHOOL_ADMIN,
+            school: userData.schoolId
+        });
+        
+        await this.mailService.sendAccountInfoEmail(userData.email, userData.username, userData.password, UserRole.SCHOOL_ADMIN);
         return newUser.save();
     }
 
@@ -42,26 +54,7 @@ export class UsersService {
         console.log(`🏫 School lookup result:`, school ? `Found school: ${school.schoolName}` : 'No school found');
         
         if (!school) {
-            // Let's see what schools exist and their admin assignments
-            const allSchools = await this.schoolModel.find().exec();
-            console.log(`📚 All schools in database:`, allSchools.map(s => ({
-                id: s._id,
-                name: s.schoolName,
-                admin: s.schoolAdmin,
-                adminType: typeof s.schoolAdmin
-            })));
-            
-            // For development/testing, let's try to create a school for this admin
-            console.log(`🚨 No school found for admin ${schoolAdminId}. Attempting to create one...`);
-            
-            try {
-                const newSchool = await this.createTestSchoolForAdmin(schoolAdminId);
-                console.log(`✅ Created new school: ${newSchool.schoolName}`);
-                school = newSchool;
-            } catch (createError) {
-                console.error('❌ Failed to create school:', createError);
-                throw new BadRequestException('School not found for this admin. Please ensure you have a school assigned.');
-            }
+            throw new BadRequestException('School not found for this admin. Please ensure the school admin has a school assigned before creating staff members.');
         }
 
         const hashedPassword = await this.hashUtils.hashPassword(userData.password);
@@ -114,26 +107,7 @@ export class UsersService {
         console.log(`🏫 School lookup result:`, school ? `Found school: ${school.schoolName}` : 'No school found');
         
         if (!school) {
-            // Let's see what schools exist and their admin assignments
-            const allSchools = await this.schoolModel.find().exec();
-            console.log(`📚 All schools in database:`, allSchools.map(s => ({
-                id: s._id,
-                name: s.schoolName,
-                admin: s.schoolAdmin,
-                adminType: typeof s.schoolAdmin
-            })));
-            
-            // For development/testing, let's try to create a school for this admin
-            console.log(`🚨 No school found for admin ${schoolAdminId}. Attempting to create one...`);
-            
-            try {
-                const newSchool = await this.createTestSchoolForAdmin(schoolAdminId);
-                console.log(`✅ Created new school: ${newSchool.schoolName}`);
-                school = newSchool;
-            } catch (createError) {
-                console.error('❌ Failed to create school:', createError);
-                throw new BadRequestException('School not found for this admin. Please ensure you have a school assigned.');
-            }
+            throw new BadRequestException('School not found for this admin. Please ensure the school admin has a school assigned before creating staff members.');
         }
 
         const hashedPassword = await this.hashUtils.hashPassword(userData.password);
@@ -168,46 +142,7 @@ export class UsersService {
         return savedUser;
     }
 
-    async fixUserSchoolAssociations(schoolAdminId: string): Promise<{ message: string; fixedCount: number }> {
-        try {
-            // Find the school managed by this admin
-            const school = await this.schoolModel.findOne({ 
-                schoolAdmin: new Types.ObjectId(schoolAdminId) 
-            }).exec();
-            
-            if (!school) {
-                throw new BadRequestException('School not found for this admin');
-            }
 
-            // Find all staff users (librarians, accountants, teachers) that don't have a school field
-            // or have an empty school field
-            const usersToFix = await this.userModel.find({
-                role: { $in: [UserRole.TEACHER, UserRole.LIBRARIAN, UserRole.ACCOUNTANT] },
-                $or: [
-                    { school: { $exists: false } },
-                    { school: null },
-                    { school: '' }
-                ]
-            }).exec();
-
-            let fixedCount = 0;
-            for (const user of usersToFix) {
-                // Update the user with the correct school
-                await this.userModel.findByIdAndUpdate(user._id, {
-                    school: school._id
-                }).exec();
-                fixedCount++;
-                console.log(`Fixed user ${user.username} - assigned to school ${school.schoolName}`);
-            }
-
-            return { 
-                message: `Fixed ${fixedCount} users by assigning them to school ${school.schoolName}`,
-                fixedCount 
-            };
-        } catch (error) {
-            throw error;
-        }
-    }
       
     
     async findUserByEmail(email: string): Promise<User | null> {
@@ -274,9 +209,7 @@ export class UsersService {
                 school = orphanedSchool;
             } else {
                 console.log('All schools have admins, but none match the current admin');
-                // For development, create a test school
-                console.log('Creating test school for admin...');
-                school = await this.createTestSchoolForAdmin(schoolAdminId);
+                throw new BadRequestException('School not found for this admin. Please ensure the school admin has a school assigned.');
             }
             }
 
@@ -296,38 +229,7 @@ export class UsersService {
         }
     }
 
-    async createTestSchoolForAdmin(schoolAdminId: string): Promise<any> {
-        try {
-            // Check if admin exists
-            const adminUser = await this.userModel.findById(schoolAdminId).exec();
-            if (!adminUser) {
-                throw new BadRequestException('Admin user not found');
-            }
-            
-            if (adminUser.role !== UserRole.SCHOOL_ADMIN) {
-                throw new BadRequestException('User is not a school admin');
-            }
 
-            // Create a test school
-            const testSchool = new this.schoolModel({
-                schoolName: `Test School for ${adminUser.username}`,
-                schoolCode: `TS${Date.now()}`,
-                address: 'Test Address',
-                schoolAdmin: new Types.ObjectId(schoolAdminId),
-                schoolLogo: 'https://via.placeholder.com/150',
-                status: 'active',
-                isActive: true
-            });
-
-            const savedSchool = await testSchool.save();
-            console.log(`Created test school: ${savedSchool.schoolName} for admin: ${schoolAdminId}`);
-            
-            return savedSchool;
-        } catch (error) {
-            console.error('Error creating test school:', error);
-            throw error;
-        }
-    }
 
     async deleteUser(userId: string, requesterId: string): Promise<{ message: string }> {
         try {

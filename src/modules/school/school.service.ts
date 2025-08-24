@@ -1,14 +1,14 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { School } from 'src/schemas/school.schema';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import { CreateSchoolDto } from './dto/create-school.dto';
 import { User, UserRole } from 'src/schemas/user.schema';
 import { randomBytes } from 'crypto';
 import { MailService } from '../mail/mail.service';
 import { HashService } from 'src/utils/utils.service';
-import { log } from 'console';
 import { Teacher } from 'src/schemas/teacher.schema';
+import { SchoolCodeGenerator } from 'src/utils/school-code-generator';
 
 @Injectable()
 export class SchoolService {
@@ -18,17 +18,32 @@ export class SchoolService {
         @InjectModel(Teacher.name) private teacherModel: Model<Teacher>,
         private mailService: MailService,
         private hashUtils: HashService,
+        private schoolCodeGenerator: SchoolCodeGenerator,
 ) {}
 
     async createSchool(createSchoolDto: CreateSchoolDto, schoolAdmin: string, uploadedFile:string): Promise<School> {
+        // Generate school code automatically
+        const schoolCode = await this.schoolCodeGenerator.generateSchoolCode(createSchoolDto.schoolName);
+
         const existingSchool = await this.schoolModel.findOne({
-            $or: [{ schoolAdmin }, { schoolName: createSchoolDto.schoolName }, { schoolCode: createSchoolDto.schoolCode }]
+            $or: [
+                { schoolAdmin }, 
+                { schoolName: createSchoolDto.schoolName }, 
+                { schoolCode: schoolCode }
+            ]
         });
         
         if (existingSchool) {
             throw new ConflictException("A school with the same admin, name, or code already exists.");
         }
-        const createdSchool = new this.schoolModel({...createSchoolDto, schoolAdmin, schoolLogo:uploadedFile});
+
+        const createdSchool = new this.schoolModel({
+            ...createSchoolDto,
+            schoolCode: schoolCode,
+            schoolAdmin, 
+            schoolLogo: uploadedFile
+        });
+        
         return (await createdSchool.save()).populate("schoolAdmin");
     }
 
@@ -120,5 +135,47 @@ export class SchoolService {
         );
 
         return { message: 'Password reset and emailed to teacher.' };
+    }
+
+    // School Status Management Methods
+    async suspendSchool(schoolId: string, reason?: string, changedBy?: string): Promise<School> {
+        const school = await this.schoolModel.findById(schoolId);
+        if (!school) {
+            throw new NotFoundException('School not found');
+        }
+
+        school.status = 'disactive';
+        school.isActive = false;
+        school.statusReason = reason;
+        school.statusChangedAt = new Date();
+        school.statusChangedBy = changedBy ? new Types.ObjectId(changedBy) : undefined;
+
+        await school.save();
+
+        return school.populate(['schoolAdmin', 'statusChangedBy']);
+    }
+
+    async activateSchool(schoolId: string, reason?: string, changedBy?: string): Promise<School> {
+        const school = await this.schoolModel.findById(schoolId);
+        if (!school) {
+            throw new NotFoundException('School not found');
+        }
+        school.status = 'active';
+        school.isActive = true;
+        school.statusReason = reason;
+        school.statusChangedAt = new Date();
+        school.statusChangedBy = changedBy ? new Types.ObjectId(changedBy) : undefined;
+
+        await school.save();
+
+        return school.populate(['schoolAdmin', 'statusChangedBy']);
+    }
+
+    async isSchoolActive(schoolId: string): Promise<boolean> {
+        const school = await this.schoolModel.findById(schoolId);
+        if (!school) {
+            throw new NotFoundException('School not found');
+        }
+        return school.status === 'active' && school.isActive === true;
     }
 }

@@ -27,6 +27,15 @@ export class School {
   @Prop({ required: true , enum: ["active", "disactive"], default: "active" })
   status : "active" | "disactive"
 
+  @Prop({ type: String, required: false })
+  statusReason?: string;
+
+  @Prop({ type: Date, required: false })
+  statusChangedAt?: Date;
+
+  @Prop({ type: Types.ObjectId, ref: 'User', required: false })
+  statusChangedBy?: Types.ObjectId;
+
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'subscriptionPlan' })
   subscriptionPlan: subscriptionPlan;
 

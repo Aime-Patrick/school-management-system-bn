@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsMongoId } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class CreateSchoolDto {
   @ApiProperty({ example: 'Greenwood High School' })
@@ -7,10 +7,6 @@ export class CreateSchoolDto {
   @IsNotEmpty()
   schoolName: string;
 
-  @ApiProperty({ example: 'GHS123' })
-  @IsString()
-  @IsNotEmpty()
-  schoolCode: string;
 
   @ApiProperty({ example: '123 Main St' })
   @IsString()
