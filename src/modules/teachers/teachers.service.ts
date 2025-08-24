@@ -31,8 +31,21 @@ export class TeachersService {
     file: Express.Multer.File,
   ): Promise<{ newTeacher: Teacher; teacherPassword: string }> {
     try {
-      const school = await this.schoolModel.findOne({ schoolAdmin }).exec();
-      if (!school) throw new BadRequestException('School not found');
+      // Get the admin user and their school
+      const adminUser = await this.userModel.findById(schoolAdmin);
+      if (!adminUser) {
+        throw new BadRequestException('User not found');
+      }
+
+      if (!adminUser.school) {
+        throw new BadRequestException('User is not associated with any school');
+      }
+
+      // Get school details
+      const school = await this.schoolModel.findById(adminUser.school);
+      if (!school) {
+        throw new BadRequestException('School not found');
+      }
   
       const existingTeacher = await this.teacherModel.findOne({
         firstName: createTeacherDto.firstName,
@@ -61,6 +74,7 @@ export class TeachersService {
         phoneNumber: createTeacherDto.phoneNumber,
         password: hashedPassword,
         role: UserRole.TEACHER,
+        school: school._id, // Associate user with the school
       });
       await user.save();
       if (file){
@@ -108,6 +122,7 @@ export class TeachersService {
       phoneNumber,
       password: hashedPassword,
       role: UserRole.TEACHER,
+      school: teacher.school, // Associate user with the teacher's school
     });
     await user.save();
     const newTeacher = await this.teacherModel

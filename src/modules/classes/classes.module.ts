@@ -9,6 +9,7 @@ import { School,SchoolSchema } from 'src/schemas/school.schema';
 import { Result,ResultSchema } from 'src/schemas/result.schema';
 import { ResultModule } from '../result/result.module';
 import { Class, ClassSchema } from 'src/schemas/class.schema';
+import { User, UserSchema } from 'src/schemas/user.schema';
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -18,6 +19,7 @@ import { Class, ClassSchema } from 'src/schemas/class.schema';
       { name: School.name, schema: SchoolSchema },
       { name: Result.name, schema:  ResultSchema},
       { name: Class.name, schema:  ClassSchema},
+      { name: User.name, schema: UserSchema },
     ]),
     ResultModule,
   ],

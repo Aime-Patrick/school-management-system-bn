@@ -48,10 +48,18 @@ export class StudentsService {
     const session = await this.studentModel.db.startSession();
     session.startTransaction();
     try {
-      // Validate the school admin
-      const schoolAdmin = await this.schoolModel.findOne({
-        schoolAdmin: adminId,
-      });
+      // Get the school admin user and their school
+      const adminUser = await this.userModel.findById(adminId);
+      if (!adminUser) {
+        throw new UnauthorizedException('Admin user not found');
+      }
+      
+      if (!adminUser.school) {
+        throw new UnauthorizedException('Admin user is not associated with any school');
+      }
+      
+      // Get the school details
+      const schoolAdmin = await this.schoolModel.findById(adminUser.school);
       if (!schoolAdmin) {
         throw new UnauthorizedException('School not found');
       }
@@ -130,6 +138,7 @@ export class StudentsService {
         phoneNumber: createStudentDto.phoneNumber,
         email: (createStudentDto.email && createStudentDto.email !== 'none') ? createStudentDto.email : null, // Set to null if no email or 'none'
         role: UserRole.STUDENT,
+        school: schoolId, // Associate user with the school
         mustChangePassword: true, // Set to true to force password change on first login
       });
       await user.save({ session });
@@ -176,30 +185,29 @@ export class StudentsService {
     let school: any;
     let studentsService: any;
 
-    const adminSchool = await this.schoolModel.findOne({ schoolAdmin: userId });
-    const teacher = await this.teacherModel.findOne({
-      'accountCredentails._id': new Types.ObjectId(userId),
-    });
+    // Get the user and their school
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
 
-    if (adminSchool) {
-      school = adminSchool;
-      studentsService = await this.studentModel
-        .find({ school: school._id })
-        .populate('school')
-        .populate('class')
-        .populate('accountCredentails', 'email')
-        .exec();
-    } else if (teacher) {
-      school = teacher?.school;
-      studentsService = await this.studentModel
-        .find({ school })
-        .populate('school')
-        .populate('class')
-        .populate('accountCredentails', 'email')
-        .exec();
-    } else {
+    if (!user.school) {
+      throw new BadRequestException('User is not associated with any school');
+    }
+
+    // Get school details
+    const schoolDetails = await this.schoolModel.findById(user.school);
+    if (!schoolDetails) {
       throw new BadRequestException('School not found');
     }
+
+    school = schoolDetails;
+    studentsService = await this.studentModel
+      .find({ school: school._id })
+      .populate('school')
+      .populate('class')
+      .populate('accountCredentails', 'email')
+      .exec();
 
     return studentsService;
   }
@@ -210,29 +218,31 @@ export class StudentsService {
   ): Promise<Student | null> {
     let school: any;
     let studentsService: any;
-    const adminSchool = await this.schoolModel.findOne({ scoolAdmin: userId });
-    const teacher = await this.teacherModel.findOne({
-      'accountCredentails._id': new Types.ObjectId(userId),
-    });
-    if (adminSchool) {
-      school = adminSchool;
-      studentsService = await this.studentModel
-        .find({ registrationNumber: regNumber, school })
-        .populate('school')
-        .populate('accountCredentails', 'email')
-        .populate('class')
-        .exec();
-    } else if (teacher) {
-      school = teacher?.school;
-      studentsService = await this.studentModel
-        .find({ registrationNumber: regNumber, school })
-        .populate('school')
-        .populate('class')
-        .populate('accountCredentails', 'email')
-        .exec();
-    } else {
+    
+    // Get the user and their school
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    if (!user.school) {
+      throw new BadRequestException('User is not associated with any school');
+    }
+
+    // Get school details
+    const schoolDetails = await this.schoolModel.findById(user.school);
+    if (!schoolDetails) {
       throw new BadRequestException('School not found');
     }
+
+    school = schoolDetails;
+    studentsService = await this.studentModel
+      .find({ registrationNumber: regNumber, school: school._id })
+      .populate('school')
+      .populate('accountCredentails', 'email')
+      .populate('class')
+      .exec();
+    
     return studentsService;
   }
 
@@ -243,39 +253,36 @@ export class StudentsService {
   ): Promise<Student | null> {
     let school: any;
     let updatedStudent: any;
-    const adminSchool = await this.schoolModel.findOne({ scoolAdmin: userId });
-    const teacher = await this.teacherModel.findOne({
-      'accountCredentails._id': new Types.ObjectId(userId),
-    });
-    if (adminSchool) {
-      school = adminSchool;
-      updatedStudent = await this.studentModel
-        .findOneAndUpdate(
-          { registrationNumber: regNumber, school },
-          createStudentDto,
-          {
-            new: true,
-          },
-        )
-        .populate('school')
-        .select('-accountCredentails')
-        .exec();
-    } else if (teacher) {
-      school = teacher?.school;
-      updatedStudent = await this.studentModel
-        .findOneAndUpdate(
-          { registrationNumber: regNumber, school },
-          createStudentDto,
-          {
-            new: true,
-          },
-        )
-        .populate('school')
-        .select('-accountCredentails')
-        .exec();
-    } else {
+    
+    // Get the user and their school
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    if (!user.school) {
+      throw new BadRequestException('User is not associated with any school');
+    }
+
+    // Get school details
+    const schoolDetails = await this.schoolModel.findById(user.school);
+    if (!schoolDetails) {
       throw new BadRequestException('School not found');
     }
+
+    school = schoolDetails;
+    updatedStudent = await this.studentModel
+      .findOneAndUpdate(
+        { registrationNumber: regNumber, school: school._id },
+        createStudentDto,
+        {
+          new: true,
+        },
+      )
+      .populate('school')
+      .select('-accountCredentails')
+      .exec();
+    
     return updatedStudent;
   }
 
@@ -284,7 +291,18 @@ export class StudentsService {
     schoolAdmin: string,
   ): Promise<boolean> {
    try {
-    const school = await this.schoolModel.findOne({ schoolAdmin });
+    // Get the user and their school
+    const user = await this.userModel.findById(schoolAdmin);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    if (!user.school) {
+      throw new BadRequestException('User is not associated with any school');
+    }
+
+    // Get school details
+    const school = await this.schoolModel.findById(user.school);
     if (!school) {
       throw new BadRequestException('School not found');
     }
@@ -330,7 +348,18 @@ export class StudentsService {
     regNumber: string,
     schoolAdmin: string,
   ): Promise<Student | null> {
-    const school = await this.schoolModel.findOne({ schoolAdmin });
+    // Get the user and their school
+    const user = await this.userModel.findById(schoolAdmin);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    if (!user.school) {
+      throw new BadRequestException('User is not associated with any school');
+    }
+
+    // Get school details
+    const school = await this.schoolModel.findById(user.school);
     if (!school) {
       throw new BadRequestException('School not found');
     }

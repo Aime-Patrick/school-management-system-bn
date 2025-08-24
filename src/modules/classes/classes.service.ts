@@ -15,6 +15,7 @@ import { Class } from 'src/schemas/class.schema';
 import { CreateClassDto } from './dto/create-class.dto';
 import { TimetableDto } from './dto/timetable.dto';
 import { UpdateTimetableDto } from './dto/update-timetable.dto';
+import { User } from 'src/schemas/user.schema';
 
 const STUDENT_POPULATE_FIELDS = 'firstName lastName email';
 @Injectable()
@@ -25,6 +26,7 @@ export class ClassService {
     @InjectModel(School.name) private schoolModel: Model<School>,
     @InjectModel(Result.name) private resultModel: Model<Result>,
     @InjectModel(Class.name) private classModel: Model<Class>,
+    @InjectModel(User.name) private userModel: Model<User>,
     private resultService: ResultService,
   ) {}
 
@@ -32,7 +34,18 @@ export class ClassService {
     createClassDto: CreateCombinationDto,
     userId: string,
   ): Promise<ClassCombination> {
-    const school = await this.schoolModel.findOne({ schoolAdmin: userId });
+    // Get the user and their school
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.school) {
+      throw new NotFoundException('User is not associated with any school');
+    }
+
+    // Get school details
+    const school = await this.schoolModel.findById(user.school);
     if (!school) {
       throw new NotFoundException('School not found');
     }

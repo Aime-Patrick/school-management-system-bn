@@ -46,10 +46,13 @@ export class UsersService {
         }
         console.log(`👤 Admin user found: ${adminUser.username}, role: ${adminUser.role}`);
         
-        // Get the school managed by this admin
-        let school = await this.schoolModel.findOne({ 
-            schoolAdmin: new Types.ObjectId(schoolAdminId)
-        }).exec();
+        // Get the school from the admin user
+        if (!adminUser.school) {
+            throw new BadRequestException('Admin user is not associated with any school');
+        }
+        
+        // Get school details
+        let school = await this.schoolModel.findById(adminUser.school).exec();
         
         console.log(`🏫 School lookup result:`, school ? `Found school: ${school.schoolName}` : 'No school found');
         
@@ -99,10 +102,13 @@ export class UsersService {
         }
         console.log(`👤 Admin user found: ${adminUser.username}, role: ${adminUser.role}`);
         
-        // Get the school managed by this admin
-        let school = await this.schoolModel.findOne({ 
-            schoolAdmin: new Types.ObjectId(schoolAdminId)
-        }).exec();
+        // Get the school from the admin user
+        if (!adminUser.school) {
+            throw new BadRequestException('Admin user is not associated with any school');
+        }
+        
+        // Get school details
+        let school = await this.schoolModel.findById(adminUser.school).exec();
         
         console.log(`🏫 School lookup result:`, school ? `Found school: ${school.schoolName}` : 'No school found');
         
