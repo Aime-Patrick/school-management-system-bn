@@ -12,12 +12,14 @@ import { Teacher } from 'src/schemas/teacher.schema';
 import { AssignTeacherDto } from './dto/assign-teacher.dto';
 import { UpdateCoursetDto } from './dto/updated-course.dto';
 import { TeacherAssignedCourses } from './dto/teacher-assigned-course.dto';
+import { User } from 'src/schemas/user.schema';
 @Injectable()
 export class CoursesService {
   constructor(
     @InjectModel(Course.name) private readonly courseModel: Model<Course>,
     @InjectModel(School.name) private readonly schoolModel: Model<School>,
     @InjectModel(Teacher.name) private readonly teacherModel: Model<Teacher>,
+    @InjectModel(User.name) private readonly userModel: Model<User>,
   ) {}
 
   async createCourse(
@@ -25,7 +27,18 @@ export class CoursesService {
     schoolAdmin: string,
   ): Promise<CreateCourseDto> {
     try {
-      const school = await this.schoolModel.findOne({ schoolAdmin });
+      // Get the user and their school
+      const user = await this.userModel.findById(schoolAdmin);
+      if (!user) {
+        throw new BadRequestException('User not found');
+      }
+
+      if (!user.school) {
+        throw new BadRequestException('User is not associated with any school');
+      }
+
+      // Get school details
+      const school = await this.schoolModel.findById(user.school);
       if (!school) {
         throw new BadRequestException('School not found');
       }
@@ -83,7 +96,18 @@ export class CoursesService {
   }
 
   async getAllCourses(schoolAdmin: string): Promise<Course[]> {
-    const school = await this.schoolModel.findOne({ schoolAdmin });
+    // Get the user and their school
+    const user = await this.userModel.findById(schoolAdmin);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.school) {
+      throw new NotFoundException('User is not associated with any school');
+    }
+
+    // Get school details
+    const school = await this.schoolModel.findById(user.school);
     if (!school) {
       throw new NotFoundException('School not found');
     }
