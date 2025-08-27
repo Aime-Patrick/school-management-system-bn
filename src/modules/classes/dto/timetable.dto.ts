@@ -24,11 +24,11 @@ export class ScheduleDto {
   endTime: string;
 
   @ApiProperty({
-    example: 'John Doe',
-    description: 'The name of the teacher for the class',
+    example: '68ab6779e4845848c60d37a8',
+    description: 'The teacher ID or teacher object with _id',
   })
   @IsString()
-  teacher: string;
+  teacher: string | { _id: string; firstName: string; lastName: string };
 }
 
 export class TimetableDto {

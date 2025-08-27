@@ -315,4 +315,65 @@ export class ClassesController {
   ) {
     return this.classService.deleteDayFromTimetable(combinationId, dto.day);
   }
+
+  @Put('combinations/:combinationId/schedule/:day/:scheduleIndex')
+  @ApiOperation({ summary: 'Update a specific schedule item' })
+  @ApiParam({ name: 'combinationId', description: 'ID of the class combination' })
+  @ApiParam({ name: 'day', description: 'Day of the week (e.g., Monday)' })
+  @ApiParam({ name: 'scheduleIndex', description: 'Index of the schedule item to update' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        subject: {
+          type: 'string',
+          example: 'Mathematics',
+          description: 'Subject name (optional)',
+        },
+        teacher: {
+          type: 'string',
+          example: '68ab6779e4845848c60d37a8',
+          description: 'Teacher ID or teacher object (optional)',
+        },
+        startTime: {
+          type: 'string',
+          example: '08:00',
+          description: 'Start time (optional)',
+        },
+        endTime: {
+          type: 'string',
+          example: '09:00',
+          description: 'End time (optional)',
+        },
+      },
+    },
+  })
+  async updateScheduleItem(
+    @Param('combinationId') combinationId: string,
+    @Param('day') day: string,
+    @Param('scheduleIndex') scheduleIndex: string,
+    @Body() updateData: {
+      subject?: string;
+      teacher?: string | { _id: string; firstName: string; lastName: string };
+      startTime?: string;
+      endTime?: string;
+    },
+  ) {
+    console.log('Update Schedule Item - Params:', { combinationId, day, scheduleIndex });
+    console.log('Update Schedule Item - Body:', updateData);
+    return this.classService.updateScheduleItem(combinationId, day, parseInt(scheduleIndex), updateData);
+  }
+
+  @Delete('combinations/:combinationId/schedule/:day/:scheduleIndex')
+  @ApiOperation({ summary: 'Delete a specific schedule item' })
+  @ApiParam({ name: 'combinationId', description: 'ID of the class combination' })
+  @ApiParam({ name: 'day', description: 'Day of the week (e.g., Monday)' })
+  @ApiParam({ name: 'scheduleIndex', description: 'Index of the schedule item to delete' })
+  async deleteScheduleItem(
+    @Param('combinationId') combinationId: string,
+    @Param('day') day: string,
+    @Param('scheduleIndex') scheduleIndex: string,
+  ) {
+    return this.classService.deleteScheduleItem(combinationId, day, parseInt(scheduleIndex));
+  }
 }

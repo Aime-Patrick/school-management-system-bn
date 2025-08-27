@@ -541,6 +541,7 @@ export class PermissionsController {
 
   @Get('school-admins-without-school')
   @Roles(UserRole.SYSTEM_ADMIN)
+  
   @ApiOperation({
     summary: 'Get school admins without school',
     description: 'Get list of school admins who are not assigned to any school',

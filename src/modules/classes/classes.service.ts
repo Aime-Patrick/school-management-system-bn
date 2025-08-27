@@ -277,19 +277,49 @@ export class ClassService {
     timetable: TimetableDto[],
   ): Promise<ClassCombination> {
     const combination = await this.combinationModel.findById(combinationId);
-    if (!combination) throw new NotFoundException('Combination not found');
-
-    // Convert teacher string IDs to ObjectId
-    const convertedTimetable = timetable.map((day) => ({
-      day: day.day,
-      schedule: day.schedule.map((sch) => ({
-        subject: sch.subject,
-        teacher: new Types.ObjectId(sch.teacher), // convert here
-        startTime: sch.startTime,
-        endTime: sch.endTime,
-      })),
-    }));
-
+    if (!combination) {
+      throw new NotFoundException('Combination not found');
+    }
+    
+    // Validate timetable structure
+    if (!Array.isArray(timetable)) {
+      throw new BadRequestException('Timetable must be an array');
+    }
+    
+    // Convert teacher string IDs to ObjectId with validation
+    const convertedTimetable = timetable.map((day) => {
+      console.log(`Processing day: ${day.day}`);
+      return {
+        day: day.day,
+        schedule: day.schedule.map((sch) => {
+          console.log(`Processing schedule item - Teacher:`, sch.teacher);
+          
+          // Handle teacher object or string
+          let teacherId: string;
+          if (typeof sch.teacher === 'object' && sch.teacher !== null && '_id' in sch.teacher) {
+            teacherId = (sch.teacher as any)._id;
+            console.log(`Extracted teacher ID from object: ${teacherId}`);
+          } else if (typeof sch.teacher === 'string') {
+            teacherId = sch.teacher;
+          } else {
+            throw new BadRequestException(`Invalid teacher format: ${JSON.stringify(sch.teacher)}`);
+          }
+          
+          // Validate teacher ID
+          if (!teacherId || !Types.ObjectId.isValid(teacherId)) {
+            throw new BadRequestException(`Invalid teacher ID: ${teacherId}`);
+          }
+          
+          return {
+            subject: sch.subject,
+            teacher: new Types.ObjectId(teacherId),
+            startTime: sch.startTime,
+            endTime: sch.endTime,
+          };
+        }),
+      };
+    });
+  
     combination.timetable = convertedTimetable;
     return combination.save();
   }
@@ -302,16 +332,38 @@ export class ClassService {
     if (!combination) {
       throw new NotFoundException('Combination not found');
     }
-    // Convert teacher string IDs to ObjectId
+    
+    // Convert teacher string IDs to ObjectId with validation
     const convertedTimetable = timetable.map((day) => ({
       day: day.day ?? '',
-      schedule: (day.schedule ?? []).map((sch) => ({
-        subject: sch.subject,
-        teacher: new Types.ObjectId(sch.teacher), // convert here
-        startTime: sch.startTime,
-        endTime: sch.endTime,
-      })),
+      schedule: (day.schedule ?? []).map((sch) => {
+        console.log(`Processing schedule item - Teacher:`, sch.teacher);
+        
+        // Handle teacher object or string
+        let teacherId: string;
+        if (typeof sch.teacher === 'object' && sch.teacher !== null && '_id' in sch.teacher) {
+          teacherId = (sch.teacher as any)._id;
+          console.log(`Extracted teacher ID from object: ${teacherId}`);
+        } else if (typeof sch.teacher === 'string') {
+          teacherId = sch.teacher;
+        } else {
+          throw new BadRequestException(`Invalid teacher format: ${JSON.stringify(sch.teacher)}`);
+        }
+        
+        // Validate teacher ID
+        if (!teacherId || !Types.ObjectId.isValid(teacherId)) {
+          throw new BadRequestException(`Invalid teacher ID: ${teacherId}`);
+        }
+        
+        return {
+          subject: sch.subject,
+          teacher: new Types.ObjectId(teacherId),
+          startTime: sch.startTime,
+          endTime: sch.endTime,
+        };
+      }),
     }));
+    
     combination.timetable = convertedTimetable;
     return combination.save();
   }
@@ -324,10 +376,106 @@ export class ClassService {
     if (!combination) {
       throw new NotFoundException('Combination not found');
     }
-    // Filter out the day to be deleted
+    
     combination.timetable = combination.timetable.filter(
       (t) => t.day !== day,
     );
+    return combination.save();
+  }
+
+  async updateScheduleItem(
+    combinationId: string,
+    day: string,
+    scheduleIndex: number,
+    updateData: {
+      subject?: string;
+      teacher?: string | { _id: string; firstName: string; lastName: string };
+      startTime?: string;
+      endTime?: string;
+    },
+  ): Promise<ClassCombination> {
+    // Validate combinationId
+    if (!combinationId || combinationId === 'undefined' || !Types.ObjectId.isValid(combinationId)) {
+      throw new BadRequestException(`Invalid combination ID: ${combinationId}`);
+    }
+
+    const combination = await this.combinationModel.findById(combinationId);
+    if (!combination) {
+      throw new NotFoundException('Combination not found');
+    }
+
+    // Find the day in the timetable
+    const dayIndex = combination.timetable.findIndex((t) => t.day === day);
+    if (dayIndex === -1) {
+      throw new NotFoundException(`Day '${day}' not found in timetable`);
+    }
+
+    // Check if schedule index exists
+    if (scheduleIndex < 0 || scheduleIndex >= combination.timetable[dayIndex].schedule.length) {
+      throw new BadRequestException(`Schedule index ${scheduleIndex} is out of range`);
+    }
+
+    // Get the current schedule item
+    const currentSchedule = combination.timetable[dayIndex].schedule[scheduleIndex];
+
+    // Handle teacher ID extraction if teacher is being updated
+    let teacherId = currentSchedule.teacher.toString();
+    if (updateData.teacher) {
+      if (typeof updateData.teacher === 'object' && updateData.teacher !== null && '_id' in updateData.teacher) {
+        teacherId = (updateData.teacher as any)._id;
+      } else if (typeof updateData.teacher === 'string') {
+        teacherId = updateData.teacher;
+      } else {
+        throw new BadRequestException(`Invalid teacher format: ${JSON.stringify(updateData.teacher)}`);
+      }
+
+      // Validate teacher ID
+      if (!teacherId || !Types.ObjectId.isValid(teacherId)) {
+        throw new BadRequestException(`Invalid teacher ID: ${teacherId}`);
+      }
+    }
+
+    // Update the schedule item
+    combination.timetable[dayIndex].schedule[scheduleIndex] = {
+      subject: updateData.subject || currentSchedule.subject,
+      teacher: new Types.ObjectId(teacherId),
+      startTime: updateData.startTime || currentSchedule.startTime,
+      endTime: updateData.endTime || currentSchedule.endTime,
+    };
+
+    return combination.save();
+  }
+
+
+  async deleteScheduleItem(
+    combinationId: string,
+    day: string,
+    scheduleIndex: number,
+  ): Promise<ClassCombination> {
+    // Validate combinationId
+    if (!combinationId || combinationId === 'undefined' || !Types.ObjectId.isValid(combinationId)) {
+      throw new BadRequestException(`Invalid combination ID: ${combinationId}`);
+    }
+
+    const combination = await this.combinationModel.findById(combinationId);
+    if (!combination) {
+      throw new NotFoundException('Combination not found');
+    }
+
+    // Find the day in the timetable
+    const dayIndex = combination.timetable.findIndex((t) => t.day === day);
+    if (dayIndex === -1) {
+      throw new NotFoundException(`Day '${day}' not found in timetable`);
+    }
+
+    // Check if schedule index exists
+    if (scheduleIndex < 0 || scheduleIndex >= combination.timetable[dayIndex].schedule.length) {
+      throw new BadRequestException(`Schedule index ${scheduleIndex} is out of range`);
+    }
+
+    // Remove the schedule item
+    combination.timetable[dayIndex].schedule.splice(scheduleIndex, 1);
+
     return combination.save();
   }
 

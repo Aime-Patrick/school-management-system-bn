@@ -10,8 +10,8 @@ export enum TeacherStatus {
 }
 
 export enum TeacherGender {
-    MALE ='male',
-    FEMALE = 'female',
+    MALE ='Male',
+    FEMALE = 'Female',
 }
 
 @Schema({ timestamps: true })

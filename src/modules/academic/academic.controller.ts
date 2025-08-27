@@ -31,8 +31,12 @@ export class AcademicController {
   @ApiResponse({ status: 404, description: 'No academic years found' })
   @ApiResponse({ status: 400, description: 'Bad request' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  getAcademicYears() {
-    return this.academicService.getAllAcademicYears();
+  getAcademicYears(@Req() req) {
+    const schoolId = req.user.schoolId;
+    if (!schoolId) {
+      throw new BadRequestException('School ID is required');
+    }
+    return this.academicService.getAllAcademicYears(schoolId);
   }
 
   @Post()
@@ -63,8 +67,13 @@ export class AcademicController {
   updateAcademicYear(
     @Body() academic: CreateAcademicDto,
     @Param('id') id: string,
+    @Req() req,
   ) {
-    return this.academicService.updateAcademicYear(id, academic);
+    const schoolId = req.user.schoolId;
+    if (!schoolId) {
+      throw new BadRequestException('School ID is required');
+    }
+    return this.academicService.updateAcademicYear(id, academic, schoolId);
   }
 
   @Put(':id')
@@ -81,8 +90,13 @@ export class AcademicController {
   updateAcademicYearById(
     @Param('id') id: string,
     @Body() academic: UpdateAcademicDto,
+    @Req() req,
   ) {
-    return this.academicService.updateAcademicYear(id, academic);
+    const schoolId = req.user.schoolId;
+    if (!schoolId) {
+      throw new BadRequestException('School ID is required');
+    }
+    return this.academicService.updateAcademicYear(id, academic, schoolId);
   }
 
   @Delete(':id')
@@ -93,7 +107,11 @@ export class AcademicController {
     summary: 'Delete an academic year',
     description: 'Delete an existing academic year record.',
   })
-  deleteAcademicYear(@Param('id') id: string) {
-    return this.academicService.deleteAcademicYear(id);
+  deleteAcademicYear(@Param('id') id: string, @Req() req) {
+    const schooldId = req.user.schoolId;
+    if (!schooldId) {
+      throw new BadRequestException('School ID is required');
+    }
+    return this.academicService.deleteAcademicYear(id, schooldId.toString());
   }
 }

@@ -12,9 +12,9 @@ export class AcademicService {
     ) {}
 
     // Add your service methods here
-    async getAllAcademicYears() {
+    async getAllAcademicYears(schoolId: string) {
         try {
-            return await this.academicModel.find().populate('school');
+            return await this.academicModel.find({ school: schoolId }).populate('school');
         } catch (error) {
             throw error;
         }
@@ -22,30 +22,63 @@ export class AcademicService {
 
     async createAcademicYear(academicYear: CreateAcademicDto, schoolId:string): Promise<Academic> {
         try {
+            // Validate that end date is after start date
+            if (new Date(academicYear.endDate) <= new Date(academicYear.startDate)) {
+                throw new Error('End date must be after start date');
+            }
+
             const startYear = new Date(academicYear.startDate).getFullYear();
             const endYear = new Date(academicYear.endDate).getFullYear();
 
             const newAcademicYear = new this.academicModel({...academicYear, name:`${startYear}-${endYear}`, school:schoolId});
             return await newAcademicYear.save();
         } catch (error) {
-            throw error;
+            throw new Error('Failed to create academic year');
         }
     }
 
-    async updateAcademicYear(id: string, academicYear: UpdateAcademicDto): Promise<Academic> {
+    async updateAcademicYear(id: string, academicYear: UpdateAcademicDto, schoolId: string): Promise<Academic> {
         try {
-            const updatedAcademicYear = await this.academicModel.findByIdAndUpdate(id, academicYear, { new: true });
-            if (!updatedAcademicYear) {
+            // Get the current academic year to use existing dates if not provided
+            const currentAcademicYear = await this.academicModel.findOne({ _id: id, school: schoolId });
+            if (!currentAcademicYear) {
                 throw new Error('Academic year not found');
+            }
+
+            // Use provided dates or fall back to existing ones
+            const startDate = academicYear.startDate || currentAcademicYear.startDate;
+            const endDate = academicYear.endDate || currentAcademicYear.endDate;
+
+            // Validate that end date is after start date
+            if (new Date(endDate) <= new Date(startDate)) {
+                throw new Error('End date must be after start date');
+            }
+
+            // Recalculate the name based on the dates
+            const startYear = new Date(startDate).getFullYear();
+            const endYear = new Date(endDate).getFullYear();
+            const updatedName = `${startYear}-${endYear}`;
+
+            const updatedAcademicYear = await this.academicModel.findByIdAndUpdate(
+                id, 
+                { 
+                    ...academicYear, 
+                    name: updatedName 
+                }, 
+                { new: true }
+            );
+            
+            if (!updatedAcademicYear) {
+                throw new Error('Failed to update academic year');
             }
             return updatedAcademicYear;
         } catch (error) {
             throw error;
         }
     }
-    async deleteAcademicYear(id: string): Promise<{ message: string }> {
+    async deleteAcademicYear(id: string, schoolId: string): Promise<{ message: string }> {
         try {
-            const deletedAcademicYear = await this.academicModel.findByIdAndDelete(id);
+            const deletedAcademicYear = await this.academicModel.findOneAndDelete({ _id: id, school: schoolId });
             if (!deletedAcademicYear) {
                 throw new Error('Academic year not found');
             }
@@ -54,9 +87,9 @@ export class AcademicService {
             throw error;
         }
     }
-    async getAcademicYearById(id: string): Promise<Academic> {
+    async getAcademicYearById(id: string, schoolId: string): Promise<Academic> {
         try {
-            const academicYear = await this.academicModel.findById(id);
+            const academicYear = await this.academicModel.findOne({ _id: id, school: schoolId });
             if (!academicYear) {
                 throw new Error('Academic year not found');
             }
@@ -67,7 +100,7 @@ export class AcademicService {
     }
     async getAcademicYearBySchoolId(schoolId: string): Promise<Academic[]> {
         try {
-            const academicYears = await this.academicModel.find({ schoolId });
+            const academicYears = await this.academicModel.find({ school: schoolId });
             if (!academicYears) {
                 throw new Error('No academic years found for this school');
             }

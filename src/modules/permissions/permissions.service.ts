@@ -594,7 +594,7 @@ export class PermissionsService {
     const users = await this.userModel.find({
       $or: [
         { school: new Types.ObjectId(schoolId) },
-        { role: 'system-admin' }
+        { role: 'school-admin' }
       ]
     }).exec();
 
