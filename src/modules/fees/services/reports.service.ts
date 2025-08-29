@@ -26,15 +26,15 @@ export class ReportsService {
     };
 
     if (classId) {
-      matchStage['feeStructure.class'] = new Types.ObjectId(classId);
+      matchStage['feeStructure.classId'] = new Types.ObjectId(classId);
     }
 
     if (academicYear) {
-      matchStage['feeStructure.academicYear'] = academicYear;
+      matchStage['feeStructure.academicYearId'] = new Types.ObjectId(academicYear);
     }
 
     if (term) {
-      matchStage['feeStructure.term'] = term;
+      matchStage['feeStructure.termId'] = new Types.ObjectId(term);
     }
 
     const outstandingFees = await this.feeAssignmentModel.aggregate([
@@ -59,6 +59,50 @@ export class ReportsService {
       },
       {
         $unwind: '$student',
+      },
+      {
+        $lookup: {
+          from: 'feecategories',
+          localField: 'feeStructure.categoryId',
+          foreignField: '_id',
+          as: 'categoryInfo',
+        },
+      },
+      {
+        $lookup: {
+          from: 'classes',
+          localField: 'feeStructure.classId',
+          foreignField: '_id',
+          as: 'classInfo',
+        },
+      },
+      {
+        $lookup: {
+          from: 'academicyears',
+          localField: 'feeStructure.academicYearId',
+          foreignField: '_id',
+          as: 'academicYearInfo',
+        },
+      },
+      {
+        $lookup: {
+          from: 'terms',
+          localField: 'feeStructure.termId',
+          foreignField: '_id',
+          as: 'termInfo',
+        },
+      },
+      {
+        $unwind: { path: '$categoryInfo', preserveNullAndEmptyArrays: true },
+      },
+      {
+        $unwind: { path: '$classInfo', preserveNullAndEmptyArrays: true },
+      },
+      {
+        $unwind: { path: '$academicYearInfo', preserveNullAndEmptyArrays: true },
+      },
+      {
+        $unwind: { path: '$termInfo', preserveNullAndEmptyArrays: true },
       },
       {
         $lookup: {
@@ -103,8 +147,10 @@ export class ReportsService {
         $project: {
           studentName: { $concat: ['$student.firstName', ' ', '$student.lastName'] },
           registrationNumber: '$student.registrationNumber',
-          className: '$feeStructure.class',
-          feeCategory: '$feeStructure.feeCategory',
+          className: '$classInfo.name',
+          feeCategory: '$categoryInfo.name',
+          academicYear: '$academicYearInfo.name',
+          term: '$termInfo.name',
           assignedAmount: 1,
           totalPaid: 1,
           outstandingAmount: 1,

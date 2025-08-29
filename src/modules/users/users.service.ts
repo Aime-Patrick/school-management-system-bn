@@ -4,148 +4,218 @@ import { Model, Types } from 'mongoose';
 import { User, UserRole } from '../../schemas/user.schema'
 import { CreateUserDto } from './dto/create-user.dto';
 import { CreateStaffUserDto } from './dto/create-staff-user.dto';
+import { CreateLibrarianDto } from './dto/create-librarian.dto';
+import { CreateAccountantDto } from './dto/create-accountant.dto';
 import { HashService } from 'src/utils/utils.service';
 import { CreateStudentDto } from '../students/dto/create-student.dto';
 import { MailService } from '../mail/mail.service';
 import { School } from '../../schemas/school.schema';
+import { Librarian } from '../../schemas/librarian.schema';
+import { Accountant } from '../../schemas/accountant.schema';
+import { ErrorHandlerUtil } from '../../utils/error-handler.util';
 @Injectable()
 export class UsersService {
     constructor(
         @InjectModel(User.name) private userModel: Model<User>,
         @InjectModel(School.name) private schoolModel: Model<School>,
+        @InjectModel(Librarian.name) private librarianModel: Model<Librarian>,
+        @InjectModel(Accountant.name) private accountantModel: Model<Accountant>,
         private hashUtils: HashService,
         private mailService: MailService
     ) {}
     
     async addSchoolAdmin(userData: CreateUserDto): Promise<User> {
-        const hashedPassword = await this.hashUtils.hashPassword(userData.password);
-        
-        // School admin should have school assigned
-        if (!userData.schoolId) {
-            throw new BadRequestException('School ID is required for school admin');
+        try {
+            const hashedPassword = await this.hashUtils.hashPassword(userData.password);
+            
+            // School admin should have school assigned
+            if (!userData.schoolId) {
+                throw new BadRequestException('School ID is required for school admin');
+            }
+            
+            const newUser = new this.userModel({
+                ...userData,
+                password: hashedPassword,
+                role: UserRole.SCHOOL_ADMIN,
+                school: userData.schoolId
+            });
+            
+            await this.mailService.sendAccountInfoEmail(userData.email, userData.username, userData.password, UserRole.SCHOOL_ADMIN);
+            return await newUser.save();
+        } catch (error) {
+            // Use the error handler utility for consistent error handling
+            ErrorHandlerUtil.handleMongoError(error);
         }
-        
-        const newUser = new this.userModel({
-            ...userData,
-            password: hashedPassword,
-            role: UserRole.SCHOOL_ADMIN,
-            school: userData.schoolId
-        });
-        
-        await this.mailService.sendAccountInfoEmail(userData.email, userData.username, userData.password, UserRole.SCHOOL_ADMIN);
-        return newUser.save();
     }
 
-    async addLibrarian(userData: CreateStaffUserDto, schoolAdminId: string): Promise<User> {
-        console.log(`🔍 Creating librarian for admin: ${schoolAdminId}`);
-        
-        // First, let's check if the admin user exists and get their details
-        const adminUser = await this.userModel.findById(schoolAdminId).exec();
-        if (!adminUser) {
-            throw new BadRequestException('Admin user not found');
-        }
-        console.log(`👤 Admin user found: ${adminUser.username}, role: ${adminUser.role}`);
-        
-        // Get the school from the admin user
-        if (!adminUser.school) {
-            throw new BadRequestException('Admin user is not associated with any school');
-        }
-        
-        // Get school details
-        let school = await this.schoolModel.findById(adminUser.school).exec();
-        
-        console.log(`🏫 School lookup result:`, school ? `Found school: ${school.schoolName}` : 'No school found');
-        
-        if (!school) {
-            throw new BadRequestException('School not found for this admin. Please ensure the school admin has a school assigned before creating staff members.');
-        }
+    async addLibrarian(librarianData: CreateLibrarianDto, schoolAdminId: string, file?: Express.Multer.File): Promise<{ newLibrarian: Librarian; librarianPassword: string }> {
+        try {
+            // Get the admin user and their school
+            const adminUser = await this.userModel.findById(schoolAdminId);
+            if (!adminUser) {
+                throw new BadRequestException('User not found');
+            }
 
-        const hashedPassword = await this.hashUtils.hashPassword(userData.password);
-        
-        // Ensure school exists before creating user
-        if (!school || !school._id) {
-            throw new BadRequestException('School not properly configured');
-        }
-        
-        // Create user with basic info
-        const newUser = new this.userModel({
-            username: userData.username,
-            email: userData.email,
-            phoneNumber: userData.phoneNumber,
-            password: hashedPassword,
-            role: UserRole.LIBRARIAN,
-            profileImage: '', // Will be set when profile image is uploaded
-            mustChangePassword: true,
-            school: school._id // Associate with the school using ObjectId
-        });
+            if (!adminUser.school) {
+                throw new BadRequestException('User is not associated with any school');
+            }
 
-        const savedUser = await newUser.save();
-        
-        // Send account creation email
-        await this.mailService.sendAccountInfoEmail(
-            userData.email, 
-            userData.username, 
-            userData.password, 
-            UserRole.LIBRARIAN
-        );
-        
-        return savedUser;
+            // Get school details
+            const school = await this.schoolModel.findById(adminUser.school);
+            if (!school) {
+                throw new BadRequestException('School not found');
+            }
+
+            // Check if librarian already exists
+            const existingLibrarian = await this.librarianModel.findOne({
+                firstName: librarianData.firstName,
+                lastName: librarianData.lastName,
+            });
+            if (existingLibrarian) throw new BadRequestException('Librarian already exists');
+
+            // Check if user account already exists
+            const existingUser = await this.userModel.findOne({
+                $or: [
+                    { email: librarianData.email },
+                    { phoneNumber: librarianData.phoneNumber }
+                ]
+            });
+            
+            if (existingUser) throw new BadRequestException('Phone number or account is already in use');
+
+            // Generate credentials
+            const password = this.hashUtils.generatePassword(librarianData.firstName);
+            const hashedPassword = await this.hashUtils.hashPassword(password);
+            
+            const user = new this.userModel({
+                username: this.hashUtils.generateUsernameForTeacher(
+                    librarianData.firstName,
+                    librarianData.lastName,
+                ),
+                email: librarianData.email,
+                phoneNumber: librarianData.phoneNumber,
+                password: hashedPassword,
+                role: UserRole.LIBRARIAN,
+                school: school._id,
+            });
+            await user.save();
+
+            // Handle profile picture upload if provided
+            if (file) {
+                const uploadedFile = await this.hashUtils.uploadFileToCloudinary(file);
+                librarianData.profilePicture = uploadedFile.url;
+            }
+
+            // Create librarian record
+            const createdLibrarian = new this.librarianModel({
+                ...librarianData,
+                school: school._id,
+                accountCredentials: user._id,
+            });
+            
+            const newLibrarian = await createdLibrarian.save();
+            
+            // Send account info email
+            await this.mailService.sendAccountInfoEmail(
+                user.email, 
+                user.username, 
+                password, 
+                UserRole.LIBRARIAN
+            );
+            
+            return {
+                newLibrarian: await newLibrarian.populate('school'),
+                librarianPassword: password,
+            };
+        } catch (error) {
+            // Use the error handler utility for consistent error handling
+            ErrorHandlerUtil.handleMongoError(error);
+        }
     }
 
-    async addAccountant(userData: CreateStaffUserDto, schoolAdminId: string): Promise<User> {
-        console.log(`🔍 Creating accountant for admin: ${schoolAdminId}`);
-        
-        // First, let's check if the admin user exists and get their details
-        const adminUser = await this.userModel.findById(schoolAdminId).exec();
-        if (!adminUser) {
-            throw new BadRequestException('Admin user not found');
-        }
-        console.log(`👤 Admin user found: ${adminUser.username}, role: ${adminUser.role}`);
-        
-        // Get the school from the admin user
-        if (!adminUser.school) {
-            throw new BadRequestException('Admin user is not associated with any school');
-        }
-        
-        // Get school details
-        let school = await this.schoolModel.findById(adminUser.school).exec();
-        
-        console.log(`🏫 School lookup result:`, school ? `Found school: ${school.schoolName}` : 'No school found');
-        
-        if (!school) {
-            throw new BadRequestException('School not found for this admin. Please ensure the school admin has a school assigned before creating staff members.');
-        }
+    async addAccountant(accountantData: CreateAccountantDto, schoolAdminId: string, file?: Express.Multer.File): Promise<{ newAccountant: Accountant; accountantPassword: string }> {
+        try {
+            // Get the admin user and their school
+            const adminUser = await this.userModel.findById(schoolAdminId);
+            if (!adminUser) {
+                throw new BadRequestException('User not found');
+            }
 
-        const hashedPassword = await this.hashUtils.hashPassword(userData.password);
-        
-        // Ensure school exists before creating user
-        if (!school || !school._id) {
-            throw new BadRequestException('School not properly configured');
-        }
-        
-        // Create user with basic info
-        const newUser = new this.userModel({
-            username: userData.username,
-            email: userData.email,
-            phoneNumber: userData.phoneNumber,
-            password: hashedPassword,
-            role: UserRole.ACCOUNTANT,
-            profileImage: '', // Will be set when profile image is uploaded
-            mustChangePassword: true,
-            school: school._id // Associate with the school using ObjectId
-        });
+            if (!adminUser.school) {
+                throw new BadRequestException('User is not associated with any school');
+            }
 
-        const savedUser = await newUser.save();
-        
-        // Send account creation email
-        await this.mailService.sendAccountInfoEmail(
-            userData.email, 
-            userData.username, 
-            userData.password, 
-            UserRole.ACCOUNTANT
-        );
-        
-        return savedUser;
+            // Get school details
+            const school = await this.schoolModel.findById(adminUser.school);
+            if (!school) {
+                throw new BadRequestException('School not found');
+            }
+
+            // Check if accountant already exists
+            const existingAccountant = await this.accountantModel.findOne({
+                firstName: accountantData.firstName,
+                lastName: accountantData.lastName,
+            });
+            if (existingAccountant) throw new BadRequestException('Accountant already exists');
+
+            // Check if user account already exists
+            const existingUser = await this.userModel.findOne({
+                $or: [
+                    { email: accountantData.email },
+                    { phoneNumber: accountantData.phoneNumber }
+                ]
+            });
+            
+            if (existingUser) throw new BadRequestException('Phone number or account is already in use');
+
+            // Generate credentials
+            const password = this.hashUtils.generatePassword(accountantData.firstName);
+            const hashedPassword = await this.hashUtils.hashPassword(password);
+            
+            const user = new this.userModel({
+                username: this.hashUtils.generateUsernameForTeacher(
+                    accountantData.firstName,
+                    accountantData.lastName,
+                ),
+                email: accountantData.email,
+                phoneNumber: accountantData.phoneNumber,
+                password: hashedPassword,
+                role: UserRole.ACCOUNTANT,
+                school: school._id,
+            });
+            await user.save();
+
+            // Handle profile picture upload if provided
+            if (file) {
+                const uploadedFile = await this.hashUtils.uploadFileToCloudinary(file);
+                accountantData.profilePicture = uploadedFile.url;
+            }
+
+            // Create accountant record
+            const createdAccountant = new this.accountantModel({
+                ...accountantData,
+                school: school._id,
+                accountCredentials: user._id,
+            });
+            
+            const newAccountant = await createdAccountant.save();
+            
+            // Send account info email
+            await this.mailService.sendAccountInfoEmail(
+                user.email, 
+                user.username, 
+                password, 
+                UserRole.ACCOUNTANT
+            );
+            
+            return {
+                newAccountant: await newAccountant.populate('school'),
+                accountantPassword: password,
+            };
+        } catch (error) {
+            // Use the error handler utility for consistent error handling
+            ErrorHandlerUtil.handleMongoError(error);
+        }
     }
 
 
@@ -159,78 +229,27 @@ export class UsersService {
         return (await this.userModel.find().select('-password').exec()).filter(user => user.role === UserRole.SYSTEM_ADMIN || user.role === UserRole.SCHOOL_ADMIN);
     }
 
+    
+
     async findUsersBySchool(schoolId: string): Promise<User[]> {
-        // This method will be used when we have school association in user schema
-        // Return users with roles that school admins can manage (staff only, not students)
-        return await this.userModel.find({
-            role: { $in: [UserRole.TEACHER, UserRole.LIBRARIAN, UserRole.ACCOUNTANT] }
-        }).select('-password').exec();
-    }
-
-    async findUsersBySchoolAdmin(schoolAdminId: string): Promise<User[]> {
         try {
-            // First, let's check if the user exists and is a school admin
-            const adminUser = await this.userModel.findById(schoolAdminId).exec();
-            if (!adminUser) {
-                throw new BadRequestException('Admin user not found');
-            }
-            
-            if (adminUser.role !== UserRole.SCHOOL_ADMIN) {
-                throw new BadRequestException('User is not a school admin');
+            // Validate schoolId
+            if (!Types.ObjectId.isValid(schoolId)) {
+                throw new BadRequestException('Invalid school ID');
             }
 
-            // Find the school managed by this admin
-            // Try different query approaches due to potential schema mismatch
-            let school = await this.schoolModel.findOne({ 
-                schoolAdmin: new Types.ObjectId(schoolAdminId) 
-            }).exec();
-            
-            // If not found, try alternative query (in case schoolAdmin is stored differently)
-            if (!school) {
-                school = await this.schoolModel.findOne({ 
-                    schoolAdmin: schoolAdminId 
-                }).exec();
-            }
-            
-            // If still not found, try to find any school (for development/testing)
-            if (!school) {
-                console.log(`No school found for admin ${schoolAdminId}. Available schools:`);
-                const allSchools = await this.schoolModel.find().exec();
-                console.log('All schools:', allSchools.map(s => ({ id: s._id, name: s.schoolName, admin: s.schoolAdmin })));
-                
-                // Check if there are any schools at all
-                if (allSchools.length === 0) {
-                    console.log('No schools exist in the database');
-                    return [];
-                }
-                
-                            // Check if there's a school without an admin (orphaned school)
-            const orphanedSchool = allSchools.find(s => !s.schoolAdmin);
-            if (orphanedSchool) {
-                console.log(`Found orphaned school: ${orphanedSchool.schoolName}, assigning admin ${schoolAdminId}`);
-                // Assign this admin to the orphaned school
-                await this.schoolModel.findByIdAndUpdate(orphanedSchool._id, {
-                    schoolAdmin: new Types.ObjectId(schoolAdminId)
-                }).exec();
-                school = orphanedSchool;
-            } else {
-                console.log('All schools have admins, but none match the current admin');
-                throw new BadRequestException('School not found for this admin. Please ensure the school admin has a school assigned.');
-            }
-            }
-
-            console.log(`Found school: ${school?.schoolName} for admin: ${schoolAdminId}`);
-
-            // Return users with roles that school admins can manage (staff only, not students)
+            // Find all users that belong to the specified school
+            // Exclude system-admin users and include only staff roles
             const users = await this.userModel.find({
-                role: { $in: [UserRole.TEACHER, UserRole.LIBRARIAN, UserRole.ACCOUNTANT] }
+                school: new Types.ObjectId(schoolId),
+                role: { $in: [UserRole.TEACHER, UserRole.LIBRARIAN, UserRole.ACCOUNTANT, UserRole.SCHOOL_ADMIN] }
             }).select('-password').exec();
             
-            console.log(`Found ${users.length} staff users`);
+            console.log(`Found ${users.length} users for school ${schoolId}`);
             return users;
             
         } catch (error) {
-            console.error('Error in findUsersBySchoolAdmin:', error);
+            console.error('Error in findUsersBySchool:', error);
             throw error;
         }
     }
@@ -308,25 +327,22 @@ export class UsersService {
         }
     }
 
-    async getDeletableStaffForSchoolAdmin(schoolAdminId: string): Promise<User[]> {
+    async getDeletableStaffForSchoolAdmin(schoolId: string): Promise<User[]> {
         try {
-            // Find the school managed by this admin
-            const school = await this.schoolModel.findOne({ 
-                schoolAdmin: new Types.ObjectId(schoolAdminId) 
-            }).exec();
-            
-            if (!school) {
-                throw new BadRequestException('School not found for this admin');
+            // Validate schoolId
+            if (!Types.ObjectId.isValid(schoolId)) {
+                throw new BadRequestException('Invalid school ID');
             }
 
             // Return only staff members that can be deleted (excluding school admins and students)
             const deletableStaff = await this.userModel.find({
-                school: school._id,
+                school: new Types.ObjectId(schoolId),
                 role: { 
                     $in: [UserRole.TEACHER, UserRole.LIBRARIAN, UserRole.ACCOUNTANT] 
                 }
             }).select('-password').exec();
 
+            console.log(`Found ${deletableStaff.length} deletable staff members for school ${schoolId}`);
             return deletableStaff;
         } catch (error) {
             throw error;

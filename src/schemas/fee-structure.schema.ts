@@ -57,32 +57,6 @@ export class FeeStructure extends Document {
 
   @Prop({ type: LateFeeRules })
   lateFeeRules?: LateFeeRules;
-
-  // Legacy fields for backward compatibility
-  @Prop({ default: true, deprecated: true })
-  isActive?: boolean;
-
-  @Prop({ default: 0, min: 0, deprecated: true })
-  lateFeeAmount?: number;
-
-  @Prop({ default: 0, min: 0, max: 100, deprecated: true })
-  lateFeePercentage?: number;
-
-  @Prop({ type: Number, min: 0, deprecated: true })
-  gracePeriodDays?: number;
-
-  // Legacy field names for backward compatibility
-  @Prop({ type: Types.ObjectId, ref: 'FeeCategory', deprecated: true })
-  feeCategory?: Types.ObjectId;
-
-  @Prop({ type: Types.ObjectId, ref: 'Class', deprecated: true })
-  class?: Types.ObjectId;
-
-  @Prop({ deprecated: true })
-  academicYear?: string;
-
-  @Prop({ deprecated: true })
-  term?: string;
 }
 
 export const FeeStructureSchema = SchemaFactory.createForClass(FeeStructure);

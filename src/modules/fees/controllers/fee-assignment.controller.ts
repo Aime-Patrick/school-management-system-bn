@@ -10,6 +10,7 @@ import {
   UseGuards,
   HttpStatus,
   Put,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -27,6 +28,7 @@ import { JwtAuthGuard } from '../../../guard/jwt-auth.guard';
 import { RolesGuard } from '../../../guard/roles.guard';
 import { Roles } from '../../../decorator/roles.decorator';
 import { UserRole } from '../../../schemas/user.schema';
+import { AutoAssignFeesDto } from '../dto/auto-assign-fees.dto';
 
 @ApiTags('Fee Assignments')
 @ApiBearerAuth()
@@ -39,7 +41,8 @@ export class FeeAssignmentController {
   @Roles(UserRole.SCHOOL_ADMIN, UserRole.ACCOUNTANT)
   @ApiOperation({
     summary: 'Create a new fee assignment',
-    description: 'Creates a new fee assignment for a student. Only admins and accountants can create fee assignments.',
+    description:
+      'Creates a new fee assignment for a student. Only admins and accountants can create fee assignments.',
   })
   @ApiBody({
     type: CreateFeeAssignmentDto,
@@ -94,7 +97,8 @@ export class FeeAssignmentController {
   @Get()
   @ApiOperation({
     summary: 'Get all fee assignments',
-    description: 'Retrieves a paginated list of fee assignments with optional filtering and search capabilities.',
+    description:
+      'Retrieves a paginated list of fee assignments with optional filtering and search capabilities.',
   })
   @ApiQuery({
     name: 'page',
@@ -230,16 +234,12 @@ export class FeeAssignmentController {
     return await this.feeAssignmentService.findBySchool(schoolId);
   }
 
-  @Get('outstanding/:schoolId')
+  @Get('outstanding')
   @Roles(UserRole.SCHOOL_ADMIN, UserRole.ACCOUNTANT)
   @ApiOperation({
     summary: 'Get outstanding fees for a school',
-    description: 'Retrieves a list of outstanding fees for a specific school. Only admins and accountants can access this endpoint.',
-  })
-  @ApiParam({
-    name: 'schoolId',
-    description: 'School ID',
-    example: '507f1f77bcf86cd799439011',
+    description:
+      'Retrieves a list of outstanding fees for a specific school. Only admins and accountants can access this endpoint.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -258,48 +258,120 @@ export class FeeAssignmentController {
     status: HttpStatus.FORBIDDEN,
     description: 'Forbidden - insufficient permissions',
   })
-  async getOutstandingFees(@Param('schoolId') schoolId: string) {
+  async getOutstandingFees(@Req() req) {
+    const schoolId = req.user.schoolId;
     return await this.feeAssignmentService.getOutstandingFees(schoolId);
   }
 
-  @Post('auto-assign/:studentId')
+  @Get('debug/outstanding-fees')
   @Roles(UserRole.SCHOOL_ADMIN, UserRole.ACCOUNTANT)
   @ApiOperation({
-    summary: 'Auto-assign fees to a student',
-    description: 'Automatically assigns fees to a student based on their class, academic year, and term. Only admins and accountants can use this endpoint.',
+    summary: 'Debug outstanding fees aggregation',
+    description: 'Debug endpoint to test the aggregation pipeline for outstanding fees',
   })
-  @ApiParam({
-    name: 'studentId',
-    description: 'Student ID',
-    example: '507f1f77bcf86cd799439011',
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Debug data returned successfully',
+  })
+  async debugOutstandingFees(@Req() req) {
+    const schoolId = req.user.schoolId;
+    return await this.feeAssignmentService.debugOutstandingFees(schoolId);
+  }
+
+  @Get('check-assignments')
+  @Roles(UserRole.SCHOOL_ADMIN, UserRole.ACCOUNTANT)
+  @ApiOperation({
+    summary: 'Check fee assignments count',
+    description: 'Check how many fee assignments exist for the school',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Assignment count retrieved successfully',
+  })
+  async checkFeeAssignments(@Req() req) {
+    const schoolId = req.user.schoolId;
+    return await this.feeAssignmentService.checkFeeAssignments(schoolId);
+  }
+
+  @Post('auto-assign')
+  @Roles(UserRole.SCHOOL_ADMIN, UserRole.ACCOUNTANT)
+  @ApiOperation({
+    summary: 'Auto-assign fees to students',
+    description:
+      'Automatically assigns fees to students. Supports both individual student assignment and bulk assignment to multiple students/classes.',
   })
   @ApiBody({
     schema: {
       type: 'object',
       properties: {
-        classId: {
+        feeStructureId: {
           type: 'string',
-          description: 'Class ID',
+          description: 'Fee Structure ID',
           example: '507f1f77bcf86cd799439012',
         },
-        academicYear: {
+        // Individual assignment
+        studentId: {
           type: 'string',
-          description: 'Academic year',
-          example: '2024-2025',
+          description: 'Student ID (for individual assignment)',
+          example: '507f1f77bcf86cd799439011',
         },
-        term: {
+        // Bulk assignment
+        classIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Class IDs (for bulk assignment)',
+          example: ['507f1f77bcf86cd799439013', '507f1f77bcf86cd799439014'],
+        },
+        studentIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Student IDs (for bulk assignment)',
+          example: ['507f1f77bcf86cd799439011', '507f1f77bcf86cd799439015'],
+        },
+        assignToAllClasses: {
+          type: 'boolean',
+          description: 'Assign to all classes in the school',
+          example: false,
+        },
+        assignToAllStudents: {
+          type: 'boolean',
+          description: 'Assign to all students in selected classes',
+          example: false,
+        },
+        dueDate: {
           type: 'string',
-          description: 'Term or semester',
-          example: 'First Term',
+          format: 'date',
+          description: 'Due date for the fee assignment',
+          example: '2024-09-15',
+        },
+        sendNotification: {
+          type: 'boolean',
+          description: 'Send notification to students/parents',
+          example: true,
+        },
+        notes: {
+          type: 'string',
+          description: 'Additional notes for the assignment',
+          example: 'Term 1 fees assignment',
         },
       },
-      required: ['classId', 'academicYear', 'term'],
+      required: ['feeStructureId'],
     },
   })
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'Fees auto-assigned successfully',
-    type: 'array',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        assignedCount: { type: 'number' },
+        assignments: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/FeeAssignment' },
+        },
+      },
+    },
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
@@ -313,19 +385,21 @@ export class FeeAssignmentController {
     status: HttpStatus.FORBIDDEN,
     description: 'Forbidden - insufficient permissions',
   })
-  async autoAssignFees(
-    @Param('studentId') studentId: string,
-    @Body('classId') classId: string,
-    @Body('academicYear') academicYear: string,
-    @Body('term') term: string,
-  ) {
-    return await this.feeAssignmentService.autoAssignFees(studentId, classId, academicYear, term);
+  async autoAssignFees(@Body() autoAssignDto: AutoAssignFeesDto, @Req() req) {
+    const schoolId = req.user.schoolId;
+    const assignedBy = req.user.id;
+    return await this.feeAssignmentService.autoAssignFees(
+      autoAssignDto,
+      schoolId,
+      assignedBy,
+    );
   }
 
   @Get(':id')
   @ApiOperation({
     summary: 'Get a fee assignment by ID',
-    description: 'Retrieves a specific fee assignment by its unique identifier.',
+    description:
+      'Retrieves a specific fee assignment by its unique identifier.',
   })
   @ApiParam({
     name: 'id',
@@ -356,7 +430,8 @@ export class FeeAssignmentController {
   @Roles(UserRole.SCHOOL_ADMIN, UserRole.ACCOUNTANT)
   @ApiOperation({
     summary: 'Update a fee assignment',
-    description: 'Updates an existing fee assignment. Only admins and accountants can update fee assignments.',
+    description:
+      'Updates an existing fee assignment. Only admins and accountants can update fee assignments.',
   })
   @ApiParam({
     name: 'id',
@@ -416,7 +491,8 @@ export class FeeAssignmentController {
   @Roles(UserRole.SCHOOL_ADMIN, UserRole.ACCOUNTANT)
   @ApiOperation({
     summary: 'Mark fee assignment as completed',
-    description: 'Marks a fee assignment as completed. Only admins and accountants can complete fee assignments.',
+    description:
+      'Marks a fee assignment as completed. Only admins and accountants can complete fee assignments.',
   })
   @ApiParam({
     name: 'id',
@@ -429,7 +505,8 @@ export class FeeAssignmentController {
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
-    description: 'Bad request - invalid fee assignment ID or assignment not active',
+    description:
+      'Bad request - invalid fee assignment ID or assignment not active',
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -451,7 +528,8 @@ export class FeeAssignmentController {
   @Roles(UserRole.SCHOOL_ADMIN)
   @ApiOperation({
     summary: 'Delete a fee assignment',
-    description: 'Deletes a fee assignment. Only admins can delete fee assignments, and only active assignments can be deleted.',
+    description:
+      'Deletes a fee assignment. Only admins can delete fee assignments, and only active assignments can be deleted.',
   })
   @ApiParam({
     name: 'id',
@@ -464,7 +542,8 @@ export class FeeAssignmentController {
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
-    description: 'Bad request - invalid fee assignment ID or assignment not active',
+    description:
+      'Bad request - invalid fee assignment ID or assignment not active',
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -481,4 +560,5 @@ export class FeeAssignmentController {
   async remove(@Param('id') id: string): Promise<void> {
     return await this.feeAssignmentService.remove(id);
   }
+
 }

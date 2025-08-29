@@ -1,8 +1,11 @@
-import { Controller, Get, Post, Delete, Put, Body, Param, UseGuards, Req, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Put, Body, Param, UseGuards, Req, BadRequestException, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { ApiBearerAuth, ApiTags, ApiOperation, ApiBody, ApiResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiBody, ApiResponse, ApiConsumes } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { CreateUserDto } from './dto/create-user.dto';
 import { CreateStaffUserDto } from './dto/create-staff-user.dto';
+import { CreateLibrarianDto } from './dto/create-librarian.dto';
+import { CreateAccountantDto } from './dto/create-accountant.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from 'src/guard/jwt-auth.guard';
 import { RolesGuard } from 'src/guard/roles.guard';
@@ -38,13 +41,14 @@ export class UsersController {
     })
     async getSchoolStaff(@Req() req: any) {
         try {
-            const schoolAdminId = req.user.id;
-            console.log('School admin ID from request:', schoolAdminId);
-            console.log('User object from request:', req.user);
-            return await this.usersService.findUsersBySchoolAdmin(schoolAdminId);
+            const schoolId = req.user.schoolId;
+            if (!schoolId) {
+                throw new BadRequestException('School ID not found in user token');
+            }
+            return await this.usersService.findUsersBySchool(schoolId);
         } catch (error) {
             console.error('Error fetching school staff:', error);
-            throw new Error('Failed to fetch school staff');
+            throw new BadRequestException(error.message || 'Failed to fetch school staff');
         }
     }
 
@@ -60,8 +64,11 @@ export class UsersController {
     @ApiResponse({ status: 400, description: 'Bad request - school not found' })
     async getDeletableStaff(@Req() req: any) {
         try {
-            const schoolAdminId = req.user.id;
-            return await this.usersService.getDeletableStaffForSchoolAdmin(schoolAdminId);
+            const schoolId = req.user.schoolId;
+            if (!schoolId) {
+                throw new BadRequestException('School ID not found in user token');
+            }
+            return await this.usersService.getDeletableStaffForSchoolAdmin(schoolId);
         } catch (error) {
             console.error('Error fetching deletable staff:', error);
             throw new BadRequestException(error.message || 'Failed to fetch deletable staff');
@@ -87,35 +94,48 @@ export class UsersController {
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('school-admin')
+    @UseInterceptors(FileInterceptor('profilePicture'))
+    @ApiConsumes('multipart/form-data')
     @ApiOperation({ 
         summary: 'Create librarian', 
         description: 'Create a new librarian user for your school. The school ID is automatically determined from your admin account.' 
     })
     @ApiBody({
-        type: CreateStaffUserDto,
-        description: 'Librarian creation data',
+        type: CreateLibrarianDto,
+        description: 'Librarian creation data with personal and professional information',
         examples: {
             librarian: {
                 summary: 'Create Librarian',
                 value: {
-                    username: 'librarian.sarah',
-                    email: 'sarah.wilson@school.com',
-                    password: 'SecurePass123!',
-                    phoneNumber: '+1234567890',
-
+                    firstName: 'Sarah',
+                    lastName: 'Wilson',
+                    dateOfBirth: '1985-05-15T00:00:00.000Z',
+                    address: '123 Main St',
+                    city: 'New York',
+                    hiredDate: '2024-01-15T00:00:00.000Z',
+                    status: 'active',
                     department: 'Library Department',
+                    gender: 'Female',
                     employmentType: 'Full-time',
-                    startDate: '2024-01-15',
                     qualifications: 'Master of Library Science',
-                    experience: '8 years in school library management'
+                    experience: '8 years in school library management',
+                    email: 'sarah.wilson@school.com',
+                    phoneNumber: '+1234567890',
+                    specialization: 'Children\'s Literature',
+                    certifications: ['ALA Certification'],
+                    workingHours: '8:00 AM - 4:00 PM'
                 }
             }
         }
     })
-    async createLibrarian(@Body() userData: CreateStaffUserDto, @Req() req: any) {
+    async createLibrarian(
+        @Body() librarianData: CreateLibrarianDto, 
+        @UploadedFile() file: Express.Multer.File,
+        @Req() req: any
+    ) {
         try {
             const schoolAdminId = req.user.id;
-            return await this.usersService.addLibrarian(userData, schoolAdminId);
+            return await this.usersService.addLibrarian(librarianData, schoolAdminId, file);
         } catch (error) {
             console.log(error);
             throw new BadRequestException(error.message || 'Failed to create librarian');
@@ -126,35 +146,49 @@ export class UsersController {
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('school-admin')
+    @UseInterceptors(FileInterceptor('profilePicture'))
+    @ApiConsumes('multipart/form-data')
     @ApiOperation({ 
         summary: 'Create accountant', 
         description: 'Create a new accountant user for your school. The school ID is automatically determined from your admin account.' 
     })
     @ApiBody({
-        type: CreateStaffUserDto,
-        description: 'Accountant creation data',
+        type: CreateAccountantDto,
+        description: 'Accountant creation data with personal and professional information',
         examples: {
             accountant: {
                 summary: 'Create Accountant',
                 value: {
-                    username: 'accountant.mike',
-                    email: 'mike.johnson@school.com',
-                    password: 'SecurePass123!',
-                    phoneNumber: '+1234567890',
-
+                    firstName: 'Mike',
+                    lastName: 'Johnson',
+                    dateOfBirth: '1985-05-15T00:00:00.000Z',
+                    address: '123 Main St',
+                    city: 'New York',
+                    hiredDate: '2024-01-15T00:00:00.000Z',
+                    status: 'active',
                     department: 'Finance Department',
+                    gender: 'Male',
                     employmentType: 'Full-time',
-                    startDate: '2024-01-15',
                     qualifications: 'Bachelor of Accounting',
-                    experience: '5 years in school financial management'
+                    experience: '5 years in school financial management',
+                    email: 'mike.johnson@school.com',
+                    phoneNumber: '+1234567890',
+                    specialization: 'General Accounting',
+                    certifications: ['CPA', 'QuickBooks Certified'],
+                    workingHours: '8:00 AM - 4:00 PM',
+                    softwareProficiency: ['QuickBooks', 'Excel', 'Sage']
                 }
             }
         }
     })
-    async createAccountant(@Body() userData: CreateStaffUserDto, @Req() req: any) {
+    async createAccountant(
+        @Body() accountantData: CreateAccountantDto, 
+        @UploadedFile() file: Express.Multer.File,
+        @Req() req: any
+    ) {
         try {
             const schoolAdminId = req.user.id;
-            return await this.usersService.addAccountant(userData, schoolAdminId);
+            return await this.usersService.addAccountant(accountantData, schoolAdminId, file);
         } catch (error) {
             console.log(error);
             throw new BadRequestException(error.message || 'Failed to create accountant');

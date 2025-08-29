@@ -6,6 +6,8 @@ import { FeeStructure } from '../../../schemas/fee-structure.schema';
 import { Student } from '../../../schemas/student.schema';
 import { CreateFeeAssignmentDto } from '../dto/create-fee-assignment.dto';
 import { QueryFeeAssignmentsDto } from '../dto/query-fees.dto';
+import { AutoAssignFeesDto } from '../dto/auto-assign-fees.dto';
+import { Class } from '../../../schemas/class.schema';
 
 @Injectable()
 export class FeeAssignmentService {
@@ -13,6 +15,7 @@ export class FeeAssignmentService {
     @InjectModel(FeeAssignment.name) private feeAssignmentModel: Model<FeeAssignment>,
     @InjectModel(FeeStructure.name) private feeStructureModel: Model<FeeStructure>,
     @InjectModel(Student.name) private studentModel: Model<Student>,
+    @InjectModel(Class.name) private classModel: Model<Class>,
   ) {}
 
   async create(createFeeAssignmentDto: CreateFeeAssignmentDto): Promise<FeeAssignment> {
@@ -108,7 +111,14 @@ export class FeeAssignmentService {
       this.feeAssignmentModel
         .find(filter)
         .populate('student', 'firstName lastName registrationNumber')
-        .populate('feeStructure')
+        .populate({
+          path: 'feeStructure',
+          populate: [
+            { path: 'categoryId', select: 'name' },
+            { path: 'classId', select: 'name' },
+            { path: 'academicYearId', select: 'name' }
+          ]
+        })
         .populate('school', 'name')
         .populate('assignedBy', 'firstName lastName')
         .skip(skip)
@@ -134,7 +144,14 @@ export class FeeAssignmentService {
     const feeAssignment = await this.feeAssignmentModel
       .findById(id)
       .populate('student', 'firstName lastName registrationNumber')
-      .populate('feeStructure')
+      .populate({
+        path: 'feeStructure',
+        populate: [
+          { path: 'categoryId', select: 'name' },
+          { path: 'classId', select: 'name' },
+          { path: 'academicYearId', select: 'name' }
+        ]
+      })
       .populate('school', 'name')
       .populate('assignedBy', 'firstName lastName')
       .exec();
@@ -215,7 +232,14 @@ export class FeeAssignmentService {
     const updatedAssignment = await this.feeAssignmentModel
       .findByIdAndUpdate(id, updateData, { new: true, runValidators: true })
       .populate('student', 'firstName lastName registrationNumber')
-      .populate('feeStructure')
+      .populate({
+        path: 'feeStructure',
+        populate: [
+          { path: 'categoryId', select: 'name' },
+          { path: 'classId', select: 'name' },
+          { path: 'academicYearId', select: 'name' }
+        ]
+      })
       .populate('school', 'name')
       .populate('assignedBy', 'firstName lastName')
       .exec();
@@ -252,7 +276,14 @@ export class FeeAssignmentService {
 
     return await this.feeAssignmentModel
       .find({ student: new Types.ObjectId(studentId) })
-      .populate('feeStructure')
+      .populate({
+        path: 'feeStructure',
+        populate: [
+          { path: 'categoryId', select: 'name' },
+          { path: 'classId', select: 'name' },
+          { path: 'academicYearId', select: 'name' }
+        ]
+      })
       .populate('school', 'name')
       .populate('assignedBy', 'firstName lastName')
       .sort({ createdAt: -1 })
@@ -267,7 +298,14 @@ export class FeeAssignmentService {
     return await this.feeAssignmentModel
       .find({ school: new Types.ObjectId(schoolId) })
       .populate('student', 'firstName lastName registrationNumber')
-      .populate('feeStructure')
+      .populate({
+        path: 'feeStructure',
+        populate: [
+          { path: 'categoryId', select: 'name' },
+          { path: 'classId', select: 'name' },
+          { path: 'academicYearId', select: 'name' }
+        ]
+      })
       .populate('assignedBy', 'firstName lastName')
       .sort({ createdAt: -1 })
       .exec();
@@ -308,13 +346,38 @@ export class FeeAssignmentService {
         $unwind: '$feeStructureInfo',
       },
       {
+        $lookup: {
+          from: 'feecategories',
+          localField: 'feeStructureInfo.categoryId',
+          foreignField: '_id',
+          as: 'categoryInfo',
+        },
+      },
+      {
+        $lookup: {
+          from: 'classes',
+          localField: 'feeStructureInfo.classId',
+          foreignField: '_id',
+          as: 'classInfo',
+        },
+      },
+      {
+        $unwind: { path: '$categoryInfo', preserveNullAndEmptyArrays: true },
+      },
+      {
+        $unwind: { path: '$classInfo', preserveNullAndEmptyArrays: true },
+      },
+      {
         $project: {
           studentName: { $concat: ['$studentInfo.firstName', ' ', '$studentInfo.lastName'] },
           registrationNumber: '$studentInfo.registrationNumber',
-          feeCategory: '$feeStructureInfo.feeCategory',
+          feeCategory: '$categoryInfo.name',
+          className: '$classInfo.name',
           assignedAmount: 1,
           dueDate: 1,
           status: 1,
+          studentId: '$student',
+          feeStructureId: '$feeStructure',
         },
       },
       {
@@ -325,51 +388,63 @@ export class FeeAssignmentService {
     return outstandingFees;
   }
 
-  async autoAssignFees(studentId: string, classId: string, academicYear: string, term: string): Promise<FeeAssignment[]> {
-    if (!Types.ObjectId.isValid(studentId)) {
-      throw new BadRequestException('Invalid student ID');
+  // Debug method to test aggregation pipeline
+  async debugOutstandingFees(schoolId: string): Promise<any[]> {
+    if (!Types.ObjectId.isValid(schoolId)) {
+      throw new BadRequestException('Invalid school ID');
     }
 
-    // Get fee structures for the student's class, academic year, and term
-    const feeStructures = await this.feeStructureModel.find({
-      class: new Types.ObjectId(classId),
-      academicYear,
-      term,
-      isActive: true,
-    }).exec();
-
-    if (feeStructures.length === 0) {
-      throw new BadRequestException('No fee structures found for the specified criteria');
-    }
-
-    const assignments: FeeAssignment[] = [];
-
-    for (const feeStructure of feeStructures) {
-      // Check if assignment already exists
-      const existingAssignment = await this.feeAssignmentModel.findOne({
-        student: new Types.ObjectId(studentId),
-        feeStructure: feeStructure._id,
-        status: { $ne: AssignmentStatus.COMPLETED },
-      });
-
-      if (!existingAssignment) {
-        const assignment = new this.feeAssignmentModel({
-          student: new Types.ObjectId(studentId),
-          feeStructure: feeStructure._id,
-          school: feeStructure.school,
+    // First, let's see what we have in the basic aggregation
+    const debugResult = await this.feeAssignmentModel.aggregate([
+      {
+        $match: {
+          school: new Types.ObjectId(schoolId),
           status: AssignmentStatus.ACTIVE,
-          assignedAmount: feeStructure.amount,
-          assignedDate: new Date(),
-          dueDate: feeStructure.dueDate,
-        });
+        },
+      },
+      {
+        $lookup: {
+          from: 'students',
+          localField: 'student',
+          foreignField: '_id',
+          as: 'studentInfo',
+        },
+      },
+      {
+        $lookup: {
+          from: 'feestructures',
+          localField: 'feeStructure',
+          foreignField: '_id',
+          as: 'feeStructureInfo',
+        },
+      },
+      {
+        $limit: 2, // Limit to 2 records for debugging
+      },
+    ]);
 
-        const savedAssignment = await assignment.save();
-        assignments.push(savedAssignment);
-      }
+    return debugResult;
+  }
+
+  // Simple method to check if there are any fee assignments
+  async checkFeeAssignments(schoolId: string): Promise<any> {
+    if (!Types.ObjectId.isValid(schoolId)) {
+      throw new BadRequestException('Invalid school ID');
     }
 
-    return assignments;
+    const totalAssignments = await this.feeAssignmentModel.countDocuments({ school: new Types.ObjectId(schoolId) });
+    const activeAssignments = await this.feeAssignmentModel.countDocuments({ 
+      school: new Types.ObjectId(schoolId), 
+      status: AssignmentStatus.ACTIVE 
+    });
+
+    return {
+      totalAssignments,
+      activeAssignments,
+      schoolId
+    };
   }
+
 
   async markAsCompleted(id: string): Promise<FeeAssignment> {
     if (!Types.ObjectId.isValid(id)) {
@@ -392,7 +467,14 @@ export class FeeAssignmentService {
         { new: true, runValidators: true }
       )
       .populate('student', 'firstName lastName registrationNumber')
-      .populate('feeStructure')
+      .populate({
+        path: 'feeStructure',
+        populate: [
+          { path: 'categoryId', select: 'name' },
+          { path: 'classId', select: 'name' },
+          { path: 'academicYearId', select: 'name' }
+        ]
+      })
       .populate('school', 'name')
       .populate('assignedBy', 'firstName lastName')
       .exec();
@@ -402,5 +484,176 @@ export class FeeAssignmentService {
     }
 
     return updatedAssignment;
+  }
+
+  async autoAssignFees(autoAssignDto: AutoAssignFeesDto, schoolId: string, assignedBy: string) {
+    const { 
+      feeStructureId, 
+      studentId, 
+      classIds, 
+      studentIds, 
+      assignToAllClasses, 
+      assignToAllStudents,
+      dueDate,
+      sendNotification,
+      notes 
+    } = autoAssignDto;
+
+    // Validate fee structure exists and belongs to school
+    const feeStructure = await this.feeStructureModel.findOne({
+      _id: new Types.ObjectId(feeStructureId),
+      school: new Types.ObjectId(schoolId),
+    }).populate('categoryId', 'name');
+    
+    if (!feeStructure) {
+      throw new BadRequestException('Fee structure not found or does not belong to your school');
+    }
+
+    let targetStudentIds: string[] = [];
+
+    if (studentId) {
+      const student = await this.studentModel.findOne({
+        _id: studentId,
+        school: schoolId,
+      });
+      
+      if (!student) {
+        throw new BadRequestException('Student not found or does not belong to your school');
+      }
+      
+      targetStudentIds = [studentId];
+    } else {
+      if (assignToAllClasses) {
+        const allClasses = await this.classModel.find({ school: schoolId });
+        const allClassIds = allClasses.map(c => (c as any)._id.toString());
+        
+        const allStudents = await this.studentModel.find({
+          school: new Types.ObjectId(schoolId),
+          class: { $in: allClassIds }
+        });
+        targetStudentIds = allStudents.map(s => s._id.toString());
+      } else if (classIds && classIds.length > 0) {
+        const studentsInClasses = await this.studentModel.find({
+          school: new Types.ObjectId(schoolId),
+          class: { $in: classIds }
+        });
+        
+        targetStudentIds = studentsInClasses.map(s => s._id.toString());
+      } else if (studentIds && studentIds.length > 0) {
+        // Direct student assignment
+        const students = await this.studentModel.find({
+          _id: { $in: studentIds },
+          school: schoolId,
+        });
+        
+        targetStudentIds = students.map(s => s._id.toString());
+      } else {
+        throw new BadRequestException('Must specify either studentId, classIds, studentIds, or assignToAllClasses');
+      }
+    }
+
+    // Remove duplicates
+    targetStudentIds = [...new Set(targetStudentIds)];
+
+    if (targetStudentIds.length === 0) {
+      throw new BadRequestException('No students found for assignment');
+    }
+
+    // Create fee assignments
+    const assignmentResults: Array<{
+      studentId: string;
+      status: 'created' | 'skipped';
+      assignmentId?: string;
+      reason?: string;
+    }> = [];
+    const createdAssignments: FeeAssignment[] = [];
+
+    for (const studentId of targetStudentIds) {
+      // Check if assignment already exists
+      const existingAssignment = await this.feeAssignmentModel.findOne({
+        student: studentId,
+        feeStructure: feeStructureId,
+        school: new Types.ObjectId(schoolId),
+        status: { $ne: AssignmentStatus.COMPLETED },
+      });
+
+      if (existingAssignment) {
+        assignmentResults.push({
+          studentId,
+          status: 'skipped',
+          reason: 'Assignment already exists',
+        });
+        continue;
+      }
+
+      // Create new assignment
+      const assignmentData = {
+        student: new Types.ObjectId(studentId),
+        feeStructure: new Types.ObjectId(feeStructureId),
+        school: new Types.ObjectId(schoolId),
+        assignedAmount: feeStructure.amount,
+        assignedBy: new Types.ObjectId(assignedBy),
+        assignedDate: new Date(),
+        dueDate: dueDate ? new Date(dueDate) : feeStructure.dueDate,
+        notes: notes || `Auto-assigned from ${
+          typeof feeStructure.categoryId === 'object' && 'name' in (feeStructure.categoryId || {})
+            ? (feeStructure.categoryId as any).name
+            : 'Fee Category'
+        }`,
+        status: AssignmentStatus.ACTIVE,
+      };
+
+      const newAssignment = new this.feeAssignmentModel(assignmentData);
+      const savedAssignment = await newAssignment.save();
+      
+      createdAssignments.push(savedAssignment);
+      assignmentResults.push({
+        studentId,
+        status: 'created',
+        assignmentId: (savedAssignment._id as Types.ObjectId).toString(),
+      });
+
+      // Send notification if requested
+      if (sendNotification) {
+        await this.sendFeeAssignmentNotification(savedAssignment);
+      }
+    }
+
+    return {
+      message: `Successfully assigned fees to ${createdAssignments.length} students`,
+      assignedCount: createdAssignments.length,
+      skippedCount: assignmentResults.filter(a => a.status === 'skipped').length,
+      assignments: createdAssignments,
+      details: assignmentResults,
+    };
+  }
+
+  // Helper method for sending notifications
+  private async sendFeeAssignmentNotification(assignment: FeeAssignment) {
+    try {
+      // Populate student and fee structure for notification
+      const populatedAssignment = await this.feeAssignmentModel
+        .findById(assignment._id)
+        .populate('student', 'firstName lastName email')
+        .populate({
+          path: 'feeStructure',
+          populate: [
+            { path: 'categoryId', select: 'name' },
+            { path: 'classId', select: 'name' },
+            { path: 'academicYearId', select: 'name' }
+          ]
+        })
+        .populate('school', 'name')
+        .exec();
+
+      if (populatedAssignment) {
+        // TODO: Implement notification logic here
+        // This could be email, SMS, or in-app notification
+        // Example: await this.emailService.sendFeeAssignmentNotification(populatedAssignment);
+      }
+    } catch (error) {
+      // Log error but don't fail the assignment creation
+      console.error('Failed to send notification:', error);
+    }
   }
 }

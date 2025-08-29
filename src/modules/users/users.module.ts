@@ -4,13 +4,17 @@ import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 import { UserSchema, User } from '../../schemas/user.schema';
 import { SchoolSchema, School } from '../../schemas/school.schema';
+import { LibrarianSchema, Librarian } from '../../schemas/librarian.schema';
+import { AccountantSchema, Accountant } from '../../schemas/accountant.schema';
 import { UtilsModule } from 'src/utils/utils.module';
 import { MailModule } from '../mail/mail.module';
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
-      { name: School.name, schema: SchoolSchema }
+      { name: School.name, schema: SchoolSchema },
+      { name: Librarian.name, schema: LibrarianSchema },
+      { name: Accountant.name, schema: AccountantSchema }
     ]),
     UtilsModule,
     MailModule

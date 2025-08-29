@@ -2,13 +2,34 @@ import { IsEmail, IsEnum, IsNotEmpty, IsString, IsStrongPassword, IsOptional, Is
 import { ApiProperty } from '@nestjs/swagger';
 import { UserRole } from '../../../schemas/user.schema';
 
+/**
+ * DTO for creating staff users (librarians, accountants, teachers)
+ * 
+ * ALLOWED FIELDS ONLY:
+ * - username: string (required, must be unique)
+ * - email: string (required, must be valid email format)
+ * - password: string (required, must meet strong password requirements)
+ * - phoneNumber: string (required)
+ * - department: string (optional)
+ * - employmentType: string (optional)
+ * - startDate: string (optional)
+ * - qualifications: string (optional)
+ * - experience: string (optional)
+ * 
+ * DO NOT SEND:
+ * - firstName, lastName (not stored in User schema)
+ * - schoolId (automatically determined from admin's school)
+ * - role (automatically set based on endpoint)
+ * - Any other properties not listed above
+ */
+
 export class CreateStaffUserDto {
   @ApiProperty({ 
     example: 'john.doe', 
-    description: 'Username for the staff member' 
+    description: 'Username for the staff member. Must be unique across the system.' 
   })
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: 'Username must be a string' })
+  @IsNotEmpty({ message: 'Username is required' })
   username: string;
 
   @ApiProperty({ 
