@@ -8,7 +8,7 @@ This project is a comprehensive school management system built using the [NestJS
 
 ## Features
 
-- User authentication and authorization
+- User authentication and authorisation
 - Role-based access control (School Admin, Teacher, Student, Accountant, Librarian)
 - Student management with profile pictures
 - Teacher management
