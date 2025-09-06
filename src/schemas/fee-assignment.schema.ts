@@ -5,6 +5,7 @@ export enum AssignmentStatus {
   ACTIVE = 'active',
   INACTIVE = 'inactive',
   COMPLETED = 'completed',
+  SUBMITTED = "SUBMITTED",
 }
 
 @Schema({ timestamps: true })

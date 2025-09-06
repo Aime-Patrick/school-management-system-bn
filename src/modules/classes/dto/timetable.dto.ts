@@ -38,6 +38,12 @@ export class TimetableDto {
   })
   @IsString()
   day: string;
+  @ApiProperty({
+    example: '2021-01-01',
+    description: 'The date of the day',
+  })
+  @IsString()
+  date: string;
 
   @ApiProperty({
     example: [

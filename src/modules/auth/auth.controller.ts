@@ -1,7 +1,8 @@
-import { Body, Controller, Param, Post, Get } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBody, ApiParam } from '@nestjs/swagger';
+import { Body, Controller, Param, Post, Get, Req, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBody, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
+import { JwtAuthGuard } from 'src/guard/jwt-auth.guard';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -24,6 +25,14 @@ export class AuthController {
         return this.authService.forgotPassword(dto.identifier);
     }
 
+    @Get('logged-in-user')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard)
+    @ApiOperation({ summary: 'Get logged in user' })
+    async getLoggedInUser(@Req() req: any) {
+        return this.authService.getLoggedInUser(req.user.id);
+    }
+
     @Post('reset-password/:token')
     @ApiOperation({ summary: 'Reset password using a reset token (teachers, school admins, librarians & accountants only)' })
     @ApiParam({ name: 'token', description: 'Password reset token sent to user email' })
@@ -43,4 +52,5 @@ export class AuthController {
     async getStaffSchoolContext(@Param('userId') userId: string) {
         return this.authService.getStaffSchoolContext(userId);
     }
+
 }

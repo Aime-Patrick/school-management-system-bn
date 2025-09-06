@@ -8,13 +8,15 @@ import { LibrarianSchema, Librarian } from '../../schemas/librarian.schema';
 import { AccountantSchema, Accountant } from '../../schemas/accountant.schema';
 import { UtilsModule } from 'src/utils/utils.module';
 import { MailModule } from '../mail/mail.module';
+import { TeacherSchema, Teacher } from '../../schemas/teacher.schema';
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: School.name, schema: SchoolSchema },
       { name: Librarian.name, schema: LibrarianSchema },
-      { name: Accountant.name, schema: AccountantSchema }
+      { name: Accountant.name, schema: AccountantSchema },
+      { name: Teacher.name, schema: TeacherSchema }
     ]),
     UtilsModule,
     MailModule

@@ -13,6 +13,8 @@ import { Teacher, TeacherSchema} from 'src/schemas/teacher.schema';
 import { Student, StudentSchema } from 'src/schemas/student.schema';
 import { School, SchoolSchema } from 'src/schemas/school.schema';
 import { MailModule } from '../mail/mail.module';
+import { Librarian, LibrarianSchema } from 'src/schemas/librarian.schema';
+import { Accountant, AccountantSchema } from 'src/schemas/accountant.schema';
 @Module({
   imports: [
     ConfigModule,
@@ -29,6 +31,8 @@ import { MailModule } from '../mail/mail.module';
     MongooseModule.forFeature([{ name: Teacher.name, schema: TeacherSchema }]),
     MongooseModule.forFeature([{ name: Student.name, schema: StudentSchema }]),
     MongooseModule.forFeature([{ name: School.name, schema: SchoolSchema }]),
+    MongooseModule.forFeature([{ name: Librarian.name, schema: LibrarianSchema }]),
+    MongooseModule.forFeature([{ name: Accountant.name, schema: AccountantSchema }]),
     UtilsModule,
     MailModule,
   ],

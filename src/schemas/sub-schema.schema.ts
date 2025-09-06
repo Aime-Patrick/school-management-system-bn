@@ -11,5 +11,6 @@ const ScheduleSchema = new MongooseSchema({
 // Day schema
 export const DaySchema = new MongooseSchema({
   day: String,
+  date: String,
   schedule: [ScheduleSchema],
 },{_id: false});

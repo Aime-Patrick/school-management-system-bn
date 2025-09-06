@@ -13,6 +13,8 @@ import { School } from '../../schemas/school.schema';
 import { Librarian } from '../../schemas/librarian.schema';
 import { Accountant } from '../../schemas/accountant.schema';
 import { ErrorHandlerUtil } from '../../utils/error-handler.util';
+import { Teacher } from '../../schemas/teacher.schema';
+
 @Injectable()
 export class UsersService {
     constructor(
@@ -20,6 +22,7 @@ export class UsersService {
         @InjectModel(School.name) private schoolModel: Model<School>,
         @InjectModel(Librarian.name) private librarianModel: Model<Librarian>,
         @InjectModel(Accountant.name) private accountantModel: Model<Accountant>,
+        @InjectModel(Teacher.name) private teacherModel: Model<Teacher>,
         private hashUtils: HashService,
         private mailService: MailService
     ) {}
@@ -110,7 +113,7 @@ export class UsersService {
             const createdLibrarian = new this.librarianModel({
                 ...librarianData,
                 school: school._id,
-                accountCredentials: user._id,
+                accountCredentails: user._id,
             });
             
             const newLibrarian = await createdLibrarian.save();
@@ -195,7 +198,7 @@ export class UsersService {
             const createdAccountant = new this.accountantModel({
                 ...accountantData,
                 school: school._id,
-                accountCredentials: user._id,
+                accountCredentails: user._id,
             });
             
             const newAccountant = await createdAccountant.save();
@@ -231,7 +234,7 @@ export class UsersService {
 
     
 
-    async findUsersBySchool(schoolId: string): Promise<User[]> {
+    async findUsersBySchool(schoolId: string): Promise<any[]> {
         try {
             // Validate schoolId
             if (!Types.ObjectId.isValid(schoolId)) {
@@ -243,10 +246,57 @@ export class UsersService {
             const users = await this.userModel.find({
                 school: new Types.ObjectId(schoolId),
                 role: { $in: [UserRole.TEACHER, UserRole.LIBRARIAN, UserRole.ACCOUNTANT, UserRole.SCHOOL_ADMIN] }
-            }).select('-password').exec();
+            }).select('-password').populate('school', 'schoolName').exec();
             
-            console.log(`Found ${users.length} users for school ${schoolId}`);
-            return users;
+            // Enhance users with detailed information from staff schemas
+            const enhancedUsers = await Promise.all(users.map(async (user) => {
+                let detailedInfo: any = null;
+                
+                // Get detailed information based on role
+                switch (user.role) {
+                    case UserRole.LIBRARIAN:
+                        const librarian = await this.librarianModel.findOne({
+                            accountCredentails: user._id
+                        }).populate('school', 'schoolName').exec();
+                        detailedInfo = librarian;
+                        break;
+                        
+                    case UserRole.ACCOUNTANT:
+                        const accountant = await this.accountantModel.findOne({
+                            accountCredentails: user._id
+                        }).populate('school', 'schoolName').exec();
+                        detailedInfo = accountant;
+                        break;
+                        
+                    case UserRole.TEACHER:
+                        const teacher = await this.teacherModel.findOne({
+                            accountCredentails: user._id
+                        }).populate('school', 'schoolName').exec();
+                        detailedInfo = teacher;
+                        break;
+                        
+                    default:
+                        break;
+                }
+                
+                return {
+                    ...user.toObject(),
+                    detailedInfo,
+                    fullName: detailedInfo ? `${detailedInfo.firstName} ${detailedInfo.lastName}` : user.username,
+                    department: detailedInfo?.department || 'N/A',
+                    status: detailedInfo?.status || 'N/A',
+                    employmentType: detailedInfo?.employmentType || 'N/A',
+                    hiredDate: detailedInfo?.hiredDate || 'N/A',
+                    qualifications: detailedInfo?.qualifications || 'N/A',
+                    experience: detailedInfo?.experience || 'N/A',
+                    specialization: detailedInfo?.specialization || 'N/A',
+                    workingHours: detailedInfo?.workingHours || 'N/A',
+                    profilePicture: detailedInfo?.profilePicture || user.profileImage || null,
+                };
+            }));
+            
+            console.log(`Found ${enhancedUsers.length} users for school ${schoolId}`);
+            return enhancedUsers;
             
         } catch (error) {
             console.error('Error in findUsersBySchool:', error);
@@ -327,7 +377,7 @@ export class UsersService {
         }
     }
 
-    async getDeletableStaffForSchoolAdmin(schoolId: string): Promise<User[]> {
+    async getDeletableStaffForSchoolAdmin(schoolId: string): Promise<any[]> {
         try {
             // Validate schoolId
             if (!Types.ObjectId.isValid(schoolId)) {
@@ -340,19 +390,66 @@ export class UsersService {
                 role: { 
                     $in: [UserRole.TEACHER, UserRole.LIBRARIAN, UserRole.ACCOUNTANT] 
                 }
-            }).select('-password').exec();
+            }).select('-password').populate('school', 'schoolName').exec();
 
-            console.log(`Found ${deletableStaff.length} deletable staff members for school ${schoolId}`);
-            return deletableStaff;
+            // Enhance staff with detailed information
+            const enhancedStaff = await Promise.all(deletableStaff.map(async (user) => {
+                let detailedInfo: any = null;
+                
+                // Get detailed information based on role
+                switch (user.role) {
+                    case UserRole.LIBRARIAN:
+                        const librarian = await this.librarianModel.findOne({
+                            accountCredentails: user._id
+                        }).populate('school', 'schoolName').exec();
+                        detailedInfo = librarian;
+                        break;
+                        
+                    case UserRole.ACCOUNTANT:
+                        const accountant = await this.accountantModel.findOne({
+                            accountCredentails: user._id
+                        }).populate('school', 'schoolName').exec();
+                        detailedInfo = accountant;
+                        break;
+                        
+                    case UserRole.TEACHER:
+                        const teacher = await this.teacherModel.findOne({
+                            accountCredentails: user._id
+                        }).populate('school', 'schoolName').exec();
+                        detailedInfo = teacher;
+                        break;
+                        
+                    default:
+                        break;
+                }
+                
+                return {
+                    ...user.toObject(),
+                    detailedInfo,
+                    fullName: detailedInfo ? `${detailedInfo.firstName} ${detailedInfo.lastName}` : user.username,
+                    department: detailedInfo?.department || 'N/A',
+                    status: detailedInfo?.status || 'N/A',
+                    employmentType: detailedInfo?.employmentType || 'N/A',
+                    hiredDate: detailedInfo?.hiredDate || 'N/A',
+                    qualifications: detailedInfo?.qualifications || 'N/A',
+                    experience: detailedInfo?.experience || 'N/A',
+                    specialization: detailedInfo?.specialization || 'N/A',
+                    workingHours: detailedInfo?.workingHours || 'N/A',
+                    profilePicture: detailedInfo?.profilePicture || user.profileImage || null,
+                };
+            }));
+
+            console.log(`Found ${enhancedStaff.length} deletable staff members for school ${schoolId}`);
+            return enhancedStaff;
         } catch (error) {
             throw error;
         }
     }
 
-    async getUserById(userId: string, requesterId: string): Promise<User> {
+    async getUserById(userId: string, requesterId: string): Promise<any> {
         try {
             // Check if the user exists
-            const user = await this.userModel.findById(userId).select('-password').exec();
+            const user = await this.userModel.findById(userId).select('-password').populate('school', 'schoolName').exec();
             if (!user) {
                 throw new BadRequestException('User not found');
             }
@@ -365,7 +462,7 @@ export class UsersService {
 
             // SYSTEM_ADMIN can view any user
             if (requester.role === UserRole.SYSTEM_ADMIN) {
-                return user;
+                return await this.enhanceUserWithDetails(user);
             }
 
             // SCHOOL_ADMIN can only view users from their school
@@ -384,7 +481,7 @@ export class UsersService {
                     throw new BadRequestException('You can only view users from your own school');
                 }
                 
-                return user;
+                return await this.enhanceUserWithDetails(user);
             }
 
             throw new BadRequestException('You are not authorized to view users');
@@ -393,6 +490,53 @@ export class UsersService {
         }
     }
 
+    // Helper method to enhance user with detailed information
+    private async enhanceUserWithDetails(user: any): Promise<any> {
+        let detailedInfo: any = null;
+        
+        // Get detailed information based on role
+        switch (user.role) {
+            case UserRole.LIBRARIAN:
+                const librarian = await this.librarianModel.findOne({
+                    accountCredentails: user._id
+                }).populate('school', 'schoolName').exec();
+                detailedInfo = librarian;
+                break;
+                
+            case UserRole.ACCOUNTANT:
+                const accountant = await this.accountantModel.findOne({
+                    accountCredentails: user._id
+                }).populate('school', 'schoolName').exec();
+                detailedInfo = accountant;
+                break;
+                
+            case UserRole.TEACHER:
+                const teacher = await this.teacherModel.findOne({
+                    accountCredentails: user._id
+                }).populate('school', 'schoolName').exec();
+                console.log(teacher);
+                detailedInfo = teacher;
+                break;
+                
+            default:
+                break;
+        }
+        
+        return {
+            ...user.toObject(),
+            detailedInfo,
+            fullName: detailedInfo ? `${detailedInfo.firstName} ${detailedInfo.lastName}` : user.username,
+            department: detailedInfo?.department || 'N/A',
+            status: detailedInfo?.status || 'N/A',
+            employmentType: detailedInfo?.employmentType || 'N/A',
+            hiredDate: detailedInfo?.hiredDate || 'N/A',
+            qualifications: detailedInfo?.qualifications || 'N/A',
+            experience: detailedInfo?.experience || 'N/A',
+            specialization: detailedInfo?.specialization || 'N/A',
+            workingHours: detailedInfo?.workingHours || 'N/A',
+            profilePicture: detailedInfo?.profilePicture || user.profileImage || null,
+        };
+    }
     async updateUser(userId: string, updateData: any, requesterId: string): Promise<User> {
         try {
             // Check if the user exists

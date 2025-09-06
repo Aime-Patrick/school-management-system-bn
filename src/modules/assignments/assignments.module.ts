@@ -1,17 +1,23 @@
 import { Module } from '@nestjs/common';
-import { AssignmentController } from './assignments.controller';
-import { AssignmentService } from './assignments.service';
 import { MongooseModule } from '@nestjs/mongoose';
-import { AssignmentSchema, Assignment } from 'src/schemas/assignment.schema';
-import { Teacher,TeacherSchema } from 'src/schemas/teacher.schema';
-import { Student, StudentSchema } from 'src/schemas/student.schema';
+import { AssignmentsController } from './assignments.controller';
+import { AssignmentsService } from './assignments.service';
+import { Assignment, AssignmentSchema } from '../../schemas/assignment.schema';
+import { Class, ClassSchema } from '../../schemas/class.schema';
+import { ClassCombination, ClassCombinationSchema } from '../../schemas/ClassCombination.schema';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module';
+
 @Module({
-  imports :[
-    MongooseModule.forFeature([{name: Assignment.name, schema: AssignmentSchema}]),
-    MongooseModule.forFeature([{name: Teacher.name, schema: TeacherSchema}]),
-    MongooseModule.forFeature([{name: Student.name, schema: StudentSchema}]),
+  imports: [
+    MongooseModule.forFeature([
+      { name: Assignment.name, schema: AssignmentSchema },
+      { name: Class.name, schema: ClassSchema },
+      { name: ClassCombination.name, schema: ClassCombinationSchema },
+    ]),
+    CloudinaryModule,
   ],
-  controllers: [AssignmentController],
-  providers: [AssignmentService]
+  controllers: [AssignmentsController],
+  providers: [AssignmentsService],
+  exports: [AssignmentsService],
 })
 export class AssignmentsModule {}

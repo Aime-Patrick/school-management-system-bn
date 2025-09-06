@@ -57,7 +57,7 @@ export class BankAccountInfo {
 @Schema({ timestamps: true })
 export class Accountant {
   @Prop({ type: mongoose.Schema.ObjectId, ref: 'User', required: true })
-  accountCredentials: User;
+  accountCredentails: User;
 
   @Prop({ required: true })
   firstName: string;

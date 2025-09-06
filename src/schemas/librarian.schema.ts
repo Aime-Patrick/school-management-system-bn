@@ -35,7 +35,7 @@ export class EmergencyContact {
 @Schema({ timestamps: true })
 export class Librarian {
   @Prop({ type: mongoose.Schema.ObjectId, ref: 'User', required: true })
-  accountCredentials: User;
+  accountCredentails: User;
 
   @Prop({ required: true })
   firstName: string;

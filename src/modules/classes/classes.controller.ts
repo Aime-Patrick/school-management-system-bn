@@ -38,36 +38,22 @@ export class ClassesController {
     return this.classService.createClass(createClassDto, schoolId);
   }
 
-  @Get()
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SCHOOL_ADMIN, UserRole.TEACHER)
-  @ApiOperation({
-    summary: 'Get all classes',
-    description: 'Retrieve all classes with optional filters for grade, subject, or teacher.',
-  })
-  @ApiQuery({ name: 'grade', required: false, type: String, description: 'Filter results by grade' })
-  @ApiQuery({ name: 'subject', required: false, type: String, description: 'Filter results by subject' })
-  @ApiQuery({ name: 'teacherId', required: false, type: String, description: 'Filter results by teacherId' })
-  async getAllClasses(
-    @Query('grade') grade?: string,
-    @Query('subject') subject?: string,
-    @Query('teacherId') teacherId?: string,
-  ) {
-    try {
-        return this.classService.getAllClasses(grade, subject, teacherId);
-    } catch (error) {
-        throw error;
-    }
-  }
 
   @Get('school/:schoolId')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SCHOOL_ADMIN, UserRole.TEACHER)
   @ApiOperation({ summary: 'Get all classes in a school' })
-  async getAllClassesInSchool(@Param('schoolId') schoolId: string) {
-    return this.classService.getAllClassesInSchool(schoolId);
+  @ApiQuery({ name: 'grade', required: false, type: String, description: 'Filter results by grade' })
+  @ApiQuery({ name: 'subject', required: false, type: String, description: 'Filter results by subject' })
+  @ApiQuery({ name: 'teacherId', required: false, type: String, description: 'Filter results by teacherId' })
+  async getAllClassesInSchool(
+    @Param('schoolId') schoolId: string,
+    @Query('grade') grade?: string,
+    @Query('subject') subject?: string,
+    @Query('teacherId') teacherId?: string,
+  ) {
+    return this.classService.getAllClassesInSchool(schoolId, grade, subject, teacherId);
   }
 
   @Get(':classId')
@@ -185,7 +171,7 @@ export class ClassesController {
     return this.classService.addCombinationToClass(classId, dto);
   }
 
-  @Put('combinations/:combinationId/teachers')
+  @Put('combinations/:combinationId/assign-teachers')
   @ApiOperation({ summary: 'Assign teachers to a class combination' })
   @ApiParam({ name: 'combinationId', description: 'ID of the class combination' })
   @ApiBody({
@@ -316,10 +302,11 @@ export class ClassesController {
     return this.classService.deleteDayFromTimetable(combinationId, dto.day);
   }
 
-  @Put('combinations/:combinationId/schedule/:day/:scheduleIndex')
+  @Put('combinations/:combinationId/schedule/:day/:date/:scheduleIndex')
   @ApiOperation({ summary: 'Update a specific schedule item' })
   @ApiParam({ name: 'combinationId', description: 'ID of the class combination' })
   @ApiParam({ name: 'day', description: 'Day of the week (e.g., Monday)' })
+  @ApiParam({ name: 'date', description: 'Date of the day (e.g., 2021-01-01)' })
   @ApiParam({ name: 'scheduleIndex', description: 'Index of the schedule item to update' })
   @ApiBody({
     schema: {
@@ -351,6 +338,7 @@ export class ClassesController {
   async updateScheduleItem(
     @Param('combinationId') combinationId: string,
     @Param('day') day: string,
+    @Param('date') date: string,
     @Param('scheduleIndex') scheduleIndex: string,
     @Body() updateData: {
       subject?: string;
@@ -361,7 +349,7 @@ export class ClassesController {
   ) {
     console.log('Update Schedule Item - Params:', { combinationId, day, scheduleIndex });
     console.log('Update Schedule Item - Body:', updateData);
-    return this.classService.updateScheduleItem(combinationId, day, parseInt(scheduleIndex), updateData);
+    return this.classService.updateScheduleItem(combinationId, day, date, parseInt(scheduleIndex), updateData);
   }
 
   @Delete('combinations/:combinationId/schedule/:day/:scheduleIndex')

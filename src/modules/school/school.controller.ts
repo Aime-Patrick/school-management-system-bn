@@ -42,16 +42,16 @@ export class SchoolController {
         }
     }
 
-    @Get('school-admin')
+    @Get('school-info')
     @ApiBearerAuth()
     @UseGuards(SubscriptionGuard)
-    @Roles(UserRole.SCHOOL_ADMIN)
-    @ApiOperation({ summary: 'check if school has registered a school' })
-    async isSchoolAdminHasSchool(@Req() req) {
+    @Roles(UserRole.SCHOOL_ADMIN, UserRole.ACCOUNTANT, UserRole.LIBRARIAN, UserRole.TEACHER, UserRole.STUDENT)
+    @ApiOperation({ summary: 'Get school info' })
+    async schoolInfo(@Req() req) {
         try {
-            return await this.schoolService.isSchoolAdminHasSchool(req.user);
+            return await this.schoolService.schoolInfo(req.user);
         } catch (error) {
-            console.error('Error fetching schools:', error);
+            console.error('Error fetching school info:', error);
             throw error;
         }
     }

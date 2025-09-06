@@ -181,22 +181,11 @@ export class StudentsService {
   }
 
 
-  async findAllStudents(userId: string): Promise<Student[]> {
+  async findAllStudents(schoolId: string): Promise<Student[]> {
     let school: any;
     let studentsService: any;
 
-    // Get the user and their school
-    const user = await this.userModel.findById(userId);
-    if (!user) {
-      throw new BadRequestException('User not found');
-    }
-
-    if (!user.school) {
-      throw new BadRequestException('User is not associated with any school');
-    }
-
-    // Get school details
-    const schoolDetails = await this.schoolModel.findById(user.school);
+    const schoolDetails = await this.schoolModel.findById(schoolId);
     if (!schoolDetails) {
       throw new BadRequestException('School not found');
     }
@@ -491,16 +480,52 @@ export class StudentsService {
 
   async getStudentById(id: string, schoolId: string): Promise<Student | null> {
    try {
-    return await this.studentModel
+    
+    // First, let's check if the student exists without the school filter
+    const studentWithoutSchool = await this.studentModel
       .findOne({
-        'accountCredentails._id': new mongoose.Types.ObjectId(id),
+        $or: [
+          { 'accountCredentails._id': new mongoose.Types.ObjectId(id) },
+          { accountCredentails: new mongoose.Types.ObjectId(id) }
+        ]
+      })
+      .populate('accountCredentails')
+      .exec();
+    
+    console.log('Student found without school filter:', studentWithoutSchool ? 'YES' : 'NO');
+    if (studentWithoutSchool) {
+      console.log('Student school ID:', studentWithoutSchool.school);
+      console.log('Expected school ID:', schoolId);
+      console.log('School IDs match:', studentWithoutSchool.school.toString() === schoolId);
+    }
+    
+    // Now try with the school filter
+    const student = await this.studentModel
+      .findOne({
+        $or: [
+          { 'accountCredentails._id': new mongoose.Types.ObjectId(id) },
+          { accountCredentails: new mongoose.Types.ObjectId(id) }
+        ],
         school: new mongoose.Types.ObjectId(schoolId),
       })
-      .populate('class')
+      .populate({
+        path: 'class',
+        populate: {
+          path: 'combinations',
+          model: 'ClassCombination'
+        }
+      })
       .populate('school')
-      .populate('accountCredentails', 'email username')
+      .populate('accountCredentails')
       .exec();
+    if (!student) {
+      throw new NotFoundException('Student not found');
+    }
+    return student;
    } catch (error) {
+    if (error instanceof NotFoundException) {
+      throw error;
+    }
     throw new NotFoundException('Student not found');
    }
   }

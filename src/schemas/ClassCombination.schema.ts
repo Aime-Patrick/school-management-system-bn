@@ -25,6 +25,7 @@ export class ClassCombination extends Document {
   })
   timetable: {
     day: string;
+    date: string;
     schedule: {
       subject: string;
       teacher: Types.ObjectId;

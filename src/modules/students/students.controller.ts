@@ -54,8 +54,8 @@ export class StudentsController {
     @ApiOperation({ summary: 'Get all students', description: 'Retrieve all students for the school.' })
     async findAllStudents(@Req() req) {
         try {
-            const schoolAdmin = req.user.id;
-            return await this.studentsService.findAllStudents(schoolAdmin);
+            const schoolId = req.user.schoolId;
+            return await this.studentsService.findAllStudents(schoolId);
         } catch (error) {
             throw error;
         }
@@ -74,21 +74,6 @@ export class StudentsController {
         }
     }
 
-
-    @Get(':regNumber')
-    @ApiBearerAuth()
-    @Roles(UserRole.SCHOOL_ADMIN, UserRole.TEACHER, UserRole.STUDENT)
-    @ApiOperation({ summary: 'Get student by registration number', description: 'Retrieve a student by their registration number.' })
-    async findStudentByRegistrationNumber(@Param('regNumber') regNumber: string, @Req() req) {
-        try {
-            const schoolAdmin = req.user.id;
-            return await this.studentsService.findStudentByRegistrationNumber(regNumber, schoolAdmin);
-        } catch (error) {
-            console.error('Error fetching student:', error);
-            throw error
-        }
-    }
-
     @Get('logged-student/:id')
     @ApiBearerAuth()
     @Roles(UserRole.SCHOOL_ADMIN, UserRole.TEACHER, UserRole.STUDENT)
@@ -102,10 +87,30 @@ export class StudentsController {
     @ApiResponse({ status: 400, description: 'Bad request' })
     async findStudentById(@Param('id') id: string, @Req() req) {
         try {
+
+            
             const school = req.user.schoolId;
-            return await this.studentsService.getStudentById(id, school);
+
+            
+            const result = await this.studentsService.getStudentById(id, school);
+            
+
+            return result;
         } catch (error) {
-            console.error('Error fetching student:', error);
+
+            throw error
+        }
+    }
+
+    @Get(':regNumber')
+    @ApiBearerAuth()
+    @Roles(UserRole.SCHOOL_ADMIN, UserRole.TEACHER, UserRole.STUDENT)
+    @ApiOperation({ summary: 'Get student by registration number', description: 'Retrieve a student by their registration number.' })
+    async findStudentByRegistrationNumber(@Param('regNumber') regNumber: string, @Req() req) {
+        try {
+            const schoolAdmin = req.user.id;
+            return await this.studentsService.findStudentByRegistrationNumber(regNumber, schoolAdmin);
+        } catch (error) {
             throw error
         }
     }
@@ -119,7 +124,6 @@ export class StudentsController {
             const schoolAdmin = req.user.id;
             return await this.studentsService.updateStudent(regNumber, createStudentDto, schoolAdmin);
         } catch (error) {
-            console.error('Error updating student:', error);
             throw error
         }
     }

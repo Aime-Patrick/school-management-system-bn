@@ -71,15 +71,17 @@ export class SchoolService {
         await this.schoolModel.findByIdAndDelete(schoolId).exec();
     }
 
-    isSchoolAdminHasSchool = async(userData: any):Promise<{schoolId:string, isSchoolExist:boolean}> =>{
+    async schoolInfo(userData: any):Promise<School> {
         try {
-            const isSchoolExist = await this.schoolModel.findOne({schoolAdmin: userData.id})
-          return isSchoolExist ? {schoolId: isSchoolExist.id,isSchoolExist:true} : {schoolId: "",isSchoolExist:false}
+            const school = await this.schoolModel.findById(userData.schoolId);
+            if (!school) {
+                throw new NotFoundException(`School with ID ${userData.schoolId} not found.`);
+            }
+            return school;
         } catch (error) {
-          throw error;
+            throw error;
         }
     }
-
     async checkSchoolSubscription(schoolId: string) {
         const school = await this.schoolModel
           .findById(schoolId)

@@ -79,47 +79,41 @@ export class ClassService {
     return createdClass.save();
   }
 
-  async getAllClasses(
+  async getAllClassesInSchool(
+    schoolId: string,
     grade?: string,
     subject?: string,
     teacherId?: string,
-  ): Promise<ClassCombination[]> {
-    const filters: any = {};
-    if (grade) filters.grade = grade;
-    if (subject) filters['timetable.schedule.subject'] = subject;
-    if (teacherId) filters['assignedTeachers'] = new Types.ObjectId(teacherId);
-
-    return this.combinationModel
-      .find(filters)
-      .populate('assignedTeachers')
-      .populate({
-        path: 'students',
-        populate: {
-          path: 'accountCredentails',
-          select: 'email',
-          model: 'User',
-        },
-        select: 'firstName lastName', // Only select firstName and lastName from Student
-      })
-      .populate({
-        path: 'timetable.schedule.teacher',
-        select: 'firstName lastName email',
-      })
-      .exec();
-  }
-
-  async getAllClassesInSchool(schoolId: string): Promise<Class[]> {
+  ): Promise<Class[]> {
     if (!Types.ObjectId.isValid(schoolId)) {
       throw new BadRequestException('Invalid school ID');
     }
+
+    // Build the base query
+    let query: any = { school: schoolId };
+
+    // Add filters if provided
+    if (grade) {
+      query['combinations.grade'] = grade;
+    }
+
+    if (subject) {
+      query['combinations.timetable.schedule.subject'] = subject;
+    }
+
+    if (teacherId) {
+      query['combinations.assignedTeachers'] = new Types.ObjectId(teacherId);
+    }
+
     return this.classModel
-      .find({ school: schoolId })
+      .find(query)
       .populate({
         path: 'combinations',
         populate: [
           {
-            path: 'timetable.schedule.teacher',
+            path: 'assignedTeachers',
             select: 'firstName lastName email',
+            model: 'Teacher',
           },
           {
             path: 'students',
@@ -128,13 +122,12 @@ export class ClassService {
               select: 'email',
               model: 'User',
             },
-            select: 'firstName lastName registrationNumber dateOfBirth gender phoneNumber address city enrollmentDate', // Only select firstName and lastName from Student
+            select: 'firstName lastName registrationNumber dateOfBirth gender phoneNumber address city enrollmentDate',
             model: 'Student',
           },
         ],
         model: 'ClassCombination',
       })
-
       .exec();
   }
 
@@ -291,6 +284,7 @@ export class ClassService {
       console.log(`Processing day: ${day.day}`);
       return {
         day: day.day,
+        date: day.date ?? '',
         schedule: day.schedule.map((sch) => {
           console.log(`Processing schedule item - Teacher:`, sch.teacher);
           
@@ -332,12 +326,17 @@ export class ClassService {
     if (!combination) {
       throw new NotFoundException('Combination not found');
     }
+    if (!Array.isArray(timetable)) {
+      throw new BadRequestException('Timetable must be an array');
+    }
+    console.log('Timetable:', timetable);
     
     // Convert teacher string IDs to ObjectId with validation
     const convertedTimetable = timetable.map((day) => ({
       day: day.day ?? '',
+      date: day.date ?? '', 
       schedule: (day.schedule ?? []).map((sch) => {
-        console.log(`Processing schedule item - Teacher:`, sch.teacher);
+      console.log(`Processing schedule item - Teacher:`, sch.teacher);
         
         // Handle teacher object or string
         let teacherId: string;
@@ -356,10 +355,10 @@ export class ClassService {
         }
         
         return {
-          subject: sch.subject,
+          subject: sch.subject ?? '',
           teacher: new Types.ObjectId(teacherId),
-          startTime: sch.startTime,
-          endTime: sch.endTime,
+          startTime: sch.startTime ?? '',
+          endTime: sch.endTime ?? '',
         };
       }),
     }));
@@ -378,7 +377,7 @@ export class ClassService {
     }
     
     combination.timetable = combination.timetable.filter(
-      (t) => t.day !== day,
+      (t) => t.day !== day && t.date !== day,
     );
     return combination.save();
   }
@@ -386,6 +385,7 @@ export class ClassService {
   async updateScheduleItem(
     combinationId: string,
     day: string,
+    date: string,
     scheduleIndex: number,
     updateData: {
       subject?: string;
@@ -405,7 +405,7 @@ export class ClassService {
     }
 
     // Find the day in the timetable
-    const dayIndex = combination.timetable.findIndex((t) => t.day === day);
+    const dayIndex = combination.timetable.findIndex((t) => t.day === day && t.date === date);
     if (dayIndex === -1) {
       throw new NotFoundException(`Day '${day}' not found in timetable`);
     }
