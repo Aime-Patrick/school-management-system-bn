@@ -9,12 +9,22 @@ This project is a comprehensive school management system built using the [NestJS
 ## Features
 
 - User authentication and authorization
-- Role-based access control (School Admin, Teacher, Student)
-- Student management
+- Role-based access control (School Admin, Teacher, Student, Accountant, Librarian)
+- Student management with profile pictures
 - Teacher management
-- Class management
+- Class management with timetables
+- Assignment management with file uploads
 - Event management
 - Result management
+- Library management
+- Financial management
+- Fee management
+- Payment processing
+- Academic year and term management
+- Course management
+- Quiz management
+- Permission-based access control
+- File upload with Cloudinary integration
 - API documentation with Swagger
 
 ## Project Setup
@@ -91,31 +101,152 @@ npm run lint
 
 The API documentation is available at `/api-docs` when the application is running. It provides detailed information about the available endpoints, request parameters, and responses.
 
+### Assignment System API
+
+The assignment system provides comprehensive functionality for creating, managing, and grading assignments:
+
+#### Assignment Creation Options
+
+Teachers can create assignments using multiple approaches:
+
+1. **Class-Based Assignment**:
+   ```json
+   {
+     "title": "Math Assignment 1",
+     "description": "Complete exercises 1-10",
+     "dueDate": "2025-09-15T23:59:59.000Z",
+     "course": "courseId",
+     "term": "termId",
+     "classId": "classId",
+     "assignToAllCombinations": true
+   }
+   ```
+
+2. **Specific Combinations**:
+   ```json
+   {
+     "title": "Math Assignment 1",
+     "description": "Complete exercises 1-10",
+     "dueDate": "2025-09-15T23:59:59.000Z",
+     "course": "courseId",
+     "term": "termId",
+     "classId": "classId",
+     "assignToAllCombinations": false,
+     "classCombinationIds": ["combination1", "combination2"]
+   }
+   ```
+
+3. **Individual Students**:
+   ```json
+   {
+     "title": "Math Assignment 1",
+     "description": "Complete exercises 1-10",
+     "dueDate": "2025-09-15T23:59:59.000Z",
+     "course": "courseId",
+     "term": "termId",
+     "assignedStudents": ["student1", "student2", "student3"]
+   }
+   ```
+
+4. **Mixed Approach**:
+   ```json
+   {
+     "title": "Math Assignment 1",
+     "description": "Complete exercises 1-10",
+     "dueDate": "2025-09-15T23:59:59.000Z",
+     "course": "courseId",
+     "term": "termId",
+     "classId": "classId",
+     "classCombinationIds": ["combination1"],
+     "assignedStudents": ["additionalStudent1", "additionalStudent2"]
+   }
+   ```
+
+#### Key Assignment Endpoints
+
+- `POST /assignments` - Create assignment with file attachments
+- `POST /assignments/:id/submit` - Submit assignment with files
+- `PUT /assignments/:id/grade/:studentId` - Grade student submission
+- `GET /assignments/teacher` - Get teacher's assignments
+- `GET /assignments/student` - Get student's assignments
+- `GET /assignments/:id` - Get assignment details
+- `PUT /assignments/:id/status` - Update assignment status
+- `DELETE /assignments/:id` - Delete assignment
+
 ### Key Modules
 
-1. **Authentication**:
-   - JWT-based authentication.
-   - Role-based access control for School Admin, Teacher, and Student.
+1. **Authentication & Authorization**:
+   - JWT-based authentication
+   - Role-based access control (School Admin, Teacher, Student, Accountant, Librarian)
+   - Permission-based access control
+   - Password reset functionality
 
 2. **Student Management**:
-   - CRUD operations for students.
-   - Assign students to classes.
+   - Complete CRUD operations for students
+   - Profile picture uploads
+   - Student enrollment and class assignment
+   - Student credentials management
+   - Course enrollment tracking
 
 3. **Teacher Management**:
-   - CRUD operations for teachers.
-   - Assign teachers to classes.
+   - Complete CRUD operations for teachers
+   - Teacher assignment to classes and combinations
+   - Teacher credentials management
+   - Password reset functionality
 
 4. **Class Management**:
-   - Manage classes, timetables, and assigned teachers.
-   - Add or remove students from classes.
+   - Class and class combination management
+   - Timetable creation and management
+   - Teacher assignment to combinations
+   - Student assignment to combinations
+   - Advanced filtering (by grade, subject, teacher)
 
-5. **Event Management**:
-   - Create, update, and retrieve school events.
-   - Role-based access for School Admin, Teacher, and Student.
+5. **Assignment Management**:
+   - Create assignments with file attachments
+   - Flexible student assignment options:
+     - Assign to entire class combinations
+     - Assign to specific class combinations
+     - Assign to individual students
+     - Mix and match approaches
+   - Student submission with file uploads
+   - Teacher grading and feedback
+   - Late submission handling with penalties
+   - File type and size validation
+   - Assignment status tracking (Draft, Published)
 
-6. **Result Management**:
-   - Manage exam results for students.
-   - Calculate total scores and percentages.
+6. **Event Management**:
+   - Create, update, and retrieve school events
+   - Event invitation system
+   - Role-based access control
+
+7. **Result Management**:
+   - Manage exam results for students
+   - Calculate total scores and percentages
+   - Grade tracking and analysis
+
+8. **Library Management**:
+   - Book catalog management
+   - Book borrowing and return system
+   - Fine calculation for overdue books
+   - Student and teacher library access
+
+9. **Financial Management**:
+   - Fee structure management
+   - Payment processing
+   - Financial reporting
+   - Payment history tracking
+
+10. **Academic Management**:
+    - Academic year management
+    - Term management
+    - Course management
+    - Quiz and assessment management
+
+11. **File Management**:
+    - Cloudinary integration for file uploads
+    - Support for multiple file types
+    - File size validation
+    - Secure file storage and retrieval
 
 ### Environment Variables
 
