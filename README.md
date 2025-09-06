@@ -164,7 +164,7 @@ Teachers can create assignments using multiple approaches:
 
 #### Key Assignment Endpoints
 
-- `POST /assignments` - Create assignment with file attachments
+- `POST /assignments` - Create an assignment with file attachments
 - `POST /assignments/:id/submit` - Submit assignment with files
 - `PUT /assignments/:id/grade/:studentId` - Grade student submission
 - `GET /assignments/teacher` - Get teacher's assignments
